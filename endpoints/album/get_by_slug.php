@@ -27,6 +27,7 @@ function api_album_get_by_slug($request) {
   }
 
   $response = [
+    'id' => $album->ID,
     'author' => get_userdata($album->post_author)->user_nicename,
     'title' => $album->post_title,
     'description' => $album->post_content,

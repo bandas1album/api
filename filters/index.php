@@ -1,5 +1,12 @@
 <?php
 
+add_filter('rest_endpoints', function($endpoints) {
+  unset($endpoints['/wp/v2/user']);
+  unset($endpoints['/wp/v2/user/(?P<id>[\d]+']);
+
+  return $endpoints;
+});
+
 add_filter('rest_url_prefix', function() {
   return 'json';
 });

@@ -1,6 +1,9 @@
 <?php
 $dirbase = get_template_directory();
 
+// Utils
+require_once $dirbase . '/utils/index.php';
+
 // Actions
 require_once $dirbase . '/actions/index.php';
 
