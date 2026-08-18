@@ -4,7 +4,7 @@ register_post_type('album', [
   'label' => 'Álbuns',
   'public' => true,
   'show_in_rest' => true,
-  'supports' => ['title', 'editor', 'thumbnail', 'custom-fields'],
+  'supports' => ['title', 'editor', 'thumbnail', 'custom-fields', 'author'],
   'menu_icon' => 'dashicons-album',
   'has_archive' => true,
   'rewrite' => ['slug' => 'albums'],
