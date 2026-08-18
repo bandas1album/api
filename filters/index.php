@@ -31,3 +31,17 @@ add_filter('posts_search', function ($search, $query) {
     )
   ";
 }, 10, 2);
+
+add_filter('manage_album_posts_columns', function($columns) {
+  $new = [];
+
+  foreach ($columns as $key => $label) {
+    $new[$key] = $label;
+
+    if ($key === 'title') {
+      $new['album_artist'] = 'Artista';
+    }
+  }
+
+  return $new;
+});
