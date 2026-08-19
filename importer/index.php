@@ -142,7 +142,7 @@ function bandas_import_render_page() {
 						</td>
 					</tr>
 					<tr><th colspan="2"><h3>Links</h3></th></tr>
-					<tr><th><label>Amazon</label></th><td><input type="url" name="amazon" class="regular-text"></td></tr>
+					<tr><th><label>Afiliado</label></th><td><input type="url" name="amazon" class="regular-text"></td></tr>
 					<tr><th><label>Deezer</label></th><td><input type="url" name="deezer" class="regular-text"></td></tr>
 					<tr><th><label>Last.fm</label></th><td><input type="url" name="lastfm" class="regular-text"></td></tr>
 					<tr><th><label>Spotify</label></th><td><input type="url" name="spotify" class="regular-text"></td></tr>
