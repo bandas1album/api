@@ -21,3 +21,6 @@ require_once $dirbase . '/endpoints/auth/index.php';
 require_once $dirbase . '/endpoints/user/index.php';
 require_once $dirbase . '/endpoints/album/index.php';
 require_once $dirbase . '/endpoints/menu/index.php';
+
+// Importer
+require_once $dirbase . '/importer/index.php';
