@@ -21,6 +21,12 @@ function api_album_get_all($request) {
     'meta' => []
   ];
 
+  if ($category === '') {
+    $home_meta = api_get_home_meta();
+    $response['meta']['content'] = $home_meta['content'];
+    $response['meta']['description'] = $home_meta['description'];
+  }
+
   if ($category === 'genre') {
     $args['tax_query'] = [
       [
@@ -31,12 +37,15 @@ function api_album_get_all($request) {
     ];
 
     $term = get_term_by('slug', $slug, 'genre');
-    $response['meta']['context'] = [
-      'type' => 'genre',
-      'page' => 'Gênero',
-      'title' => $term->name,
-      'slug' => $term->slug
-    ];
+    if ($term && !is_wp_error($term)) {
+      $response['meta']['context'] = [
+        'type' => 'genre',
+        'page' => 'Gênero',
+        'title' => $term->name,
+        'slug' => $term->slug,
+        'description' => api_get_yoast_meta_description($term->term_id, 'term'),
+      ];
+    }
   }
 
   if ($category === 'country') {
@@ -49,12 +58,15 @@ function api_album_get_all($request) {
     ];
 
     $term = get_term_by('slug', $slug, 'country');
-    $response['meta']['context'] = [
-      'type' => 'country',
-      'page' => 'País de lançamento',
-      'title' => $term->name,
-      'slug' => $term->slug
-    ];
+    if ($term && !is_wp_error($term)) {
+      $response['meta']['context'] = [
+        'type' => 'country',
+        'page' => 'País de lançamento',
+        'title' => $term->name,
+        'slug' => $term->slug,
+        'description' => api_get_yoast_meta_description($term->term_id, 'term'),
+      ];
+    }
   }
 
   if ($category === 'year') {
