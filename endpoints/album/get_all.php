@@ -44,6 +44,7 @@ function api_album_get_all($request) {
         'title' => $term->name,
         'slug' => $term->slug,
         'description' => api_get_genre_meta_description($term->name),
+        'playlists' => api_get_term_playlists($term->term_id),
       ];
     }
   }
@@ -65,6 +66,7 @@ function api_album_get_all($request) {
         'title' => $term->name,
         'slug' => $term->slug,
         'description' => api_get_country_meta_description($term->name),
+        'playlists' => api_get_term_playlists($term->term_id),
       ];
     }
   }

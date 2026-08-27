@@ -4,6 +4,7 @@ $dirbase = get_template_directory();
 // Admin
 
 require_once $dirbase . '/admin/metaboxes/album.php';
+require_once $dirbase . '/admin/metaboxes/taxonomy.php';
 
 // Utils
 require_once $dirbase . '/utils/index.php';

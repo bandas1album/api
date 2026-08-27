@@ -46,6 +46,21 @@ function api_get_album_meta_description($album_id) {
   );
 }
 
+/**
+ * YouTube / Spotify playlist URLs stored on genre or country terms.
+ *
+ * @return array{youtube: ?string, spotify: ?string}
+ */
+function api_get_term_playlists($term_id) {
+  $youtube = get_term_meta($term_id, 'playlist_youtube', true);
+  $spotify = get_term_meta($term_id, 'playlist_spotify', true);
+
+  return [
+    'youtube' => $youtube ? (string) $youtube : null,
+    'spotify' => $spotify ? (string) $spotify : null,
+  ];
+}
+
 function api_get_genre_meta_description($genre_name) {
   return sprintf(
     'Descubra álbuns de %s de bandas e artistas que lançaram apenas um álbum na carreira. Conheça essas pérolas no Bandas 1 Álbum.',
