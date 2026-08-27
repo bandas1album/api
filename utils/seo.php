@@ -1,20 +1,74 @@
 <?php
 
-function api_get_yoast_meta_description($object_id, $type = 'post') {
-  if ($type === 'post') {
-    return get_post_meta($object_id, '_yoast_wpseo_metadesc', true) ?: '';
+function api_join_pt(array $items) {
+  $items = array_values(array_filter(array_map('trim', $items)));
+  $count = count($items);
+
+  if ($count === 0) {
+    return '';
   }
 
-  if ($type === 'term') {
-    return get_term_meta($object_id, 'wpseo_desc', true) ?: '';
+  if ($count === 1) {
+    return $items[0];
   }
 
-  return '';
+  if ($count === 2) {
+    return $items[0] . ' e ' . $items[1];
+  }
+
+  $last = array_pop($items);
+  return implode(', ', $items) . ' e ' . $last;
+}
+
+function api_get_album_meta_description($album_id) {
+  $title = html_entity_decode(get_the_title($album_id));
+  $artist = get_post_meta($album_id, 'artist', true) ?: '';
+  $released = get_post_meta($album_id, 'released', true);
+  $year = $released ? date('Y', strtotime($released)) : '';
+
+  $genres = [];
+  $genre_terms = get_the_terms($album_id, 'genre');
+
+  if ($genre_terms && !is_wp_error($genre_terms)) {
+    foreach ($genre_terms as $term) {
+      $genres[] = $term->name;
+    }
+  }
+
+  $genres_str = api_join_pt($genres);
+
+  return sprintf(
+    '%s — único álbum de %s, lançado em %s. Conheça essa pérola de %s no Bandas 1 Álbum.',
+    $title,
+    $artist,
+    $year,
+    $genres_str
+  );
+}
+
+function api_get_genre_meta_description($genre_name) {
+  return sprintf(
+    'Descubra álbuns de %s de bandas e artistas que lançaram apenas um álbum na carreira. Conheça essas pérolas no Bandas 1 Álbum.',
+    $genre_name
+  );
+}
+
+function api_get_year_meta_description($year) {
+  return sprintf(
+    'Descubra álbuns lançados em %s por bandas e artistas que deixaram apenas um álbum na carreira. Conheça essas pérolas no Bandas 1 Álbum.',
+    $year
+  );
+}
+
+function api_get_country_meta_description($country_name) {
+  return sprintf(
+    'Descubra álbuns lançados em %s por bandas e artistas que deixaram apenas um álbum na carreira. Conheça essas pérolas no Bandas 1 Álbum.',
+    $country_name
+  );
 }
 
 function api_get_home_meta() {
   $content = '';
-  $description = '';
 
   if (get_option('show_on_front') === 'page') {
     $page_id = (int) get_option('page_on_front');
@@ -24,19 +78,12 @@ function api_get_home_meta() {
 
       if ($page) {
         $content = $page->post_content;
-        $description = api_get_yoast_meta_description($page_id, 'post');
       }
-    }
-  } else {
-    $yoast_titles = get_option('wpseo_titles');
-
-    if (is_array($yoast_titles) && !empty($yoast_titles['metadesc-home-wpseo'])) {
-      $description = $yoast_titles['metadesc-home-wpseo'];
     }
   }
 
   return [
     'content' => $content,
-    'description' => $description,
+    'description' => '',
   ];
 }

@@ -43,7 +43,7 @@ function api_album_get_all($request) {
         'page' => 'Gênero',
         'title' => $term->name,
         'slug' => $term->slug,
-        'description' => api_get_yoast_meta_description($term->term_id, 'term'),
+        'description' => api_get_genre_meta_description($term->name),
       ];
     }
   }
@@ -64,7 +64,7 @@ function api_album_get_all($request) {
         'page' => 'País de lançamento',
         'title' => $term->name,
         'slug' => $term->slug,
-        'description' => api_get_yoast_meta_description($term->term_id, 'term'),
+        'description' => api_get_country_meta_description($term->name),
       ];
     }
   }
@@ -80,7 +80,8 @@ function api_album_get_all($request) {
       'type' => 'year',
       'page' => 'Ano de lançamento',
       'title' => $slug,
-      'slug' => $slug
+      'slug' => $slug,
+      'description' => api_get_year_meta_description($slug),
     ];
   }
 

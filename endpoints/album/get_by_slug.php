@@ -31,6 +31,7 @@ function api_album_get_by_slug($request) {
     'author' => get_userdata($album->post_author)->user_nicename,
     'title' => $album->post_title,
     'description' => $album->post_content,
+    'meta_description' => api_get_album_meta_description($album->ID),
     'cover' => $cover_url,
     'artist' => get_post_meta($album->ID, 'artist', true),
     'genres' => $genres,
