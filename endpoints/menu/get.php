@@ -24,7 +24,7 @@ function api_get_menu($request) {
       $post_id = get_the_ID();
 
       $cover = get_post_meta($post_id, 'cover', true);
-      $cover_url = $cover ? wp_get_attachment_image_src($cover, 'large')[0] : null;
+      $cover_url = $cover ? wp_get_attachment_image_src($cover, 'thumbnail')[0] : null;
       
       $response['data'][] = [
         'title' => html_entity_decode(get_the_title()),
