@@ -125,9 +125,11 @@ add_action('save_post', function ($post_id) {
         return;
     }
     if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
+    if (!current_user_can('edit_post', $post_id)) return;
+    if (get_post_type($post_id) !== 'album') return;
 
     update_post_meta($post_id, 'artist', sanitize_text_field($_POST['artist'] ?? ''));
-    update_post_meta($post_id, 'cover', sanitize_text_field($_POST['cover'] ?? ''));
+    update_post_meta($post_id, 'cover', absint($_POST['cover'] ?? 0));
     update_post_meta($post_id, 'label', sanitize_text_field($_POST['label'] ?? ''));
 
     if (!empty($_POST['released'])) {
@@ -135,14 +137,17 @@ add_action('save_post', function ($post_id) {
         update_post_meta($post_id, 'released', sanitize_text_field($date));
     }
 
-    // Reconstrói o JSON de links no MESMO formato de hoje
+    $allowed_platforms = ['amazon', 'deezer', 'lastfm', 'spotify', 'youtube', 'wikipedia', 'download'];
     $links = [];
     foreach ($_POST['links'] ?? [] as $platform => $url) {
+        $platform = sanitize_key($platform);
+        if (!in_array($platform, $allowed_platforms, true)) {
+            continue;
+        }
         $links[$platform] = $url !== '' ? esc_url_raw($url) : null;
     }
     update_post_meta($post_id, 'links', wp_json_encode($links));
 
-    // Reconstrói o JSON de tracklist no MESMO formato de hoje
     $tracklist = [];
     $names = $_POST['track_name'] ?? [];
     $durations = $_POST['track_duration'] ?? [];

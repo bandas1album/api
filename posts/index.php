@@ -3,7 +3,7 @@
 register_post_type('album', [
   'label' => 'Álbuns',
   'public' => true,
-  'show_in_rest' => true,
+  'show_in_rest' => false,
   'supports' => ['title', 'editor', 'thumbnail', 'custom-fields', 'author'],
   'menu_icon' => 'dashicons-album',
   'has_archive' => true,
@@ -11,17 +11,17 @@ register_post_type('album', [
 ]);
 
 register_taxonomy('genre', 'album', [
-  'label'        => 'Gênero',
-  'public'       => true,
+  'label' => 'Gênero',
+  'public' => true,
   'hierarchical' => false,
-  'rewrite'      => ['slug' => 'genero'],
-  'show_in_rest' => true,
+  'rewrite' => ['slug' => 'genero'],
+  'show_in_rest' => false,
 ]);
 
 register_taxonomy('country', 'album', [
-  'label'        => 'País',
-  'public'       => true,
+  'label' => 'País',
+  'public' => true,
   'hierarchical' => false,
-  'rewrite'      => ['slug' => 'pais'],
-  'show_in_rest' => true,
+  'rewrite' => ['slug' => 'pais'],
+  'show_in_rest' => false,
 ]);

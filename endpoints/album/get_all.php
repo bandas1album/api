@@ -1,24 +1,26 @@
 <?php
 
 function api_album_get_all($request) {
-  $page = $request['page'] ?? 1;
-  $per_page = $request['per_page'] ?? 10;
-  $order_by = $request['order_by'] ?? 'date';
-  $order = $request['order'] ?? 'DESC';
-  $category = $request['category'] ?? '';
-  $slug = $request['slug'] ?? '';
+  $pagination = api_sanitize_pagination($request);
+  $page = $pagination['page'];
+  $per_page = $pagination['per_page'];
+  $order_by = api_sanitize_orderby($request['order_by'] ?? 'date');
+  $order = api_sanitize_order($request['order'] ?? 'DESC');
+  $category = sanitize_key($request['category'] ?? '');
+  $slug = sanitize_title($request['slug'] ?? '');
 
   $args = [
     'post_type' => 'album',
+    'post_status' => 'publish',
     'posts_per_page' => $per_page,
     'paged' => $page,
     'orderby' => $order_by,
-    'order' => $order
+    'order' => $order,
   ];
 
   $response = [
     'data' => [],
-    'meta' => []
+    'meta' => [],
   ];
 
   if ($category === '') {
@@ -32,8 +34,8 @@ function api_album_get_all($request) {
       [
         'taxonomy' => 'genre',
         'field' => 'slug',
-        'terms' => $slug
-      ]
+        'terms' => $slug,
+      ],
     ];
 
     $term = get_term_by('slug', $slug, 'genre');
@@ -54,8 +56,8 @@ function api_album_get_all($request) {
       [
         'taxonomy' => 'country',
         'field' => 'slug',
-        'terms' => $slug
-      ]
+        'terms' => $slug,
+      ],
     ];
 
     $term = get_term_by('slug', $slug, 'country');
@@ -75,7 +77,7 @@ function api_album_get_all($request) {
     $args['meta_query'][] = [
       'key' => 'released',
       'value' => $slug,
-      'compare' => 'LIKE'
+      'compare' => 'LIKE',
     ];
 
     $response['meta']['context'] = [
@@ -100,8 +102,9 @@ function api_album_get_all($request) {
     $query->the_post();
     $post_id = get_the_ID();
     $cover = get_post_meta($post_id, 'cover', true);
-    $cover_url = $cover ? wp_get_attachment_image_src($cover, 'thumbnail')[0] : null;
-    
+    $cover_src = $cover ? wp_get_attachment_image_src($cover, 'thumbnail') : null;
+    $cover_url = is_array($cover_src) ? $cover_src[0] : null;
+
     $response['data'][] = [
       'title' => html_entity_decode(get_the_title()),
       'artist' => get_post_meta($post_id, 'artist', true),
@@ -118,5 +121,6 @@ add_action('rest_api_init', function () {
   register_rest_route('api', '/albums', [
     'methods' => WP_REST_Server::READABLE,
     'callback' => 'api_album_get_all',
+    'permission_callback' => 'api_permission_public',
   ]);
 });

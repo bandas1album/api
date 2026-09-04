@@ -1,13 +1,17 @@
 <?php
 
 function api_user_post($request) {
-  $email = sanitize_email($request['email']);
-  $username = sanitize_text_field($request['username']);
-  $name = sanitize_text_field($request['name']);
-  $password = $request['password'];
+  $email = sanitize_email($request['email'] ?? '');
+  $username = sanitize_user($request['username'] ?? '', true);
+  $name = sanitize_text_field($request['name'] ?? '');
+  $password = (string) ($request['password'] ?? '');
 
   if (empty($email) || empty($username) || empty($password) || empty($name)) {
     return new WP_Error('error', 'Preencha todos os campos obrigatórios para concluir o cadastro.', ['status' => 406]);
+  }
+
+  if (strlen($password) < 8) {
+    return new WP_Error('error', 'A senha deve ter pelo menos 8 caracteres.', ['status' => 406]);
   }
 
   if (username_exists($username) || email_exists($email)) {
@@ -28,7 +32,7 @@ function api_user_post($request) {
 
   return rest_ensure_response([
     'id' => $user_id,
-    'message' => 'Usuário criado com sucesso'
+    'message' => 'Usuário criado com sucesso',
   ]);
 }
 
@@ -36,5 +40,6 @@ add_action('rest_api_init', function () {
   register_rest_route('api', '/user', [
     'methods' => WP_REST_Server::CREATABLE,
     'callback' => 'api_user_post',
+    'permission_callback' => 'api_permission_auth_sensitive',
   ]);
 });

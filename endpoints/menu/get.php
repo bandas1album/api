@@ -1,22 +1,29 @@
 <?php
 
 function api_get_menu($request) {
-  $type = $request['type'] ?? '';
-  $page = $request['page'] ?? 1;
-  $per_page = $request['per_page'] ?? 10;
+  $type = sanitize_key($request['type'] ?? '');
+  $pagination = api_sanitize_pagination($request);
+  $page = $pagination['page'];
+  $per_page = $pagination['per_page'];
+
+  $allowed_types = ['album', 'genre', 'country', 'released'];
+  if (!in_array($type, $allowed_types, true)) {
+    return new WP_Error('error', 'Tipo de menu inválido.', ['status' => 400]);
+  }
 
   $response = [
     'data' => [],
-    'meta' => []
+    'meta' => [],
   ];
 
   if ($type === 'album') {
     $query = new WP_Query([
       'post_type' => 'album',
+      'post_status' => 'publish',
       'posts_per_page' => $per_page,
       'orderby' => 'title',
       'order' => 'ASC',
-      'paged' => $page
+      'paged' => $page,
     ]);
 
     while ($query->have_posts()) {
@@ -24,17 +31,18 @@ function api_get_menu($request) {
       $post_id = get_the_ID();
 
       $cover = get_post_meta($post_id, 'cover', true);
-      $cover_url = $cover ? wp_get_attachment_image_src($cover, 'thumbnail')[0] : null;
-      
+      $cover_src = $cover ? wp_get_attachment_image_src($cover, 'thumbnail') : null;
+      $cover_url = is_array($cover_src) ? $cover_src[0] : null;
+
       $response['data'][] = [
         'title' => html_entity_decode(get_the_title()),
         'artist' => get_post_meta($post_id, 'artist', true),
         'slug' => get_post_field('post_name', $post_id),
-        'cover' => $cover_url
+        'cover' => $cover_url,
       ];
     }
     wp_reset_postdata();
-    
+
     $response['meta']['pagination'] = [
       'page' => (int) $page,
       'per_page' => (int) $per_page,
@@ -43,26 +51,27 @@ function api_get_menu($request) {
     ];
   }
 
-
   if ($type === 'genre') {
     $args = get_terms([
       'taxonomy' => 'genre',
       'orderby' => 'name',
       'hide_empty' => true,
       'number' => $per_page,
-      'offset' => ($page - 1) * $per_page
+      'offset' => ($page - 1) * $per_page,
     ]);
 
-    foreach ($args as $genre) {
-      $response['data'][] = [
-        'title' => $genre->name,
-        'slug' => $genre->slug,
-        'count' => $genre->count
-      ];
+    if (!is_wp_error($args)) {
+      foreach ($args as $genre) {
+        $response['data'][] = [
+          'title' => $genre->name,
+          'slug' => $genre->slug,
+          'count' => $genre->count,
+        ];
+      }
     }
 
-    $total_terms = wp_count_terms([
-      'taxonomy'   => 'genre',
+    $total_terms = (int) wp_count_terms([
+      'taxonomy' => 'genre',
       'hide_empty' => true,
     ]);
 
@@ -70,7 +79,7 @@ function api_get_menu($request) {
       'page' => (int) $page,
       'per_page' => (int) $per_page,
       'total_pages' => (int) ceil($total_terms / $per_page),
-      'total_items' => (int) $total_terms,
+      'total_items' => $total_terms,
     ];
   }
 
@@ -80,19 +89,21 @@ function api_get_menu($request) {
       'orderby' => 'name',
       'hide_empty' => true,
       'number' => $per_page,
-      'offset' => ($page - 1) * $per_page
+      'offset' => ($page - 1) * $per_page,
     ]);
 
-    foreach ($args as $country) {
-      $response['data'][] = [
-        'title' => $country->name,
-        'slug' => $country->slug,
-        'count' => $country->count
-      ];
+    if (!is_wp_error($args)) {
+      foreach ($args as $country) {
+        $response['data'][] = [
+          'title' => $country->name,
+          'slug' => $country->slug,
+          'count' => $country->count,
+        ];
+      }
     }
 
-    $total_terms = wp_count_terms([
-      'taxonomy'   => 'country',
+    $total_terms = (int) wp_count_terms([
+      'taxonomy' => 'country',
       'hide_empty' => true,
     ]);
 
@@ -100,15 +111,13 @@ function api_get_menu($request) {
       'page' => (int) $page,
       'per_page' => (int) $per_page,
       'total_pages' => (int) ceil($total_terms / $per_page),
-      'total_items' => (int) $total_terms,
+      'total_items' => $total_terms,
     ];
   }
 
   if ($type === 'released') {
     global $wpdb;
 
-    $page = max(1, (int) $page);
-    $per_page = (int) $per_page;
     $offset = ($page - 1) * $per_page;
 
     $total_items = (int) $wpdb->get_var("
@@ -118,7 +127,7 @@ function api_get_menu($request) {
     ");
 
     $years = $wpdb->get_results($wpdb->prepare("
-      SELECT 
+      SELECT
         YEAR(pm.meta_value) AS year,
         COUNT(DISTINCT p.ID) AS total
       FROM {$wpdb->postmeta} pm
@@ -134,15 +143,15 @@ function api_get_menu($request) {
     foreach ($years as $row) {
       $response['data'][] = [
         'title' => $row->year,
-        'slug' => explode('-', $row->year)[0],
-        'count' => (int) $row->total
+        'slug' => explode('-', (string) $row->year)[0],
+        'count' => (int) $row->total,
       ];
     }
 
     $response['meta']['pagination'] = [
       'page' => (int) $page,
       'per_page' => (int) $per_page,
-      'total_pages' => (int) ceil($total_items / $per_page),
+      'total_pages' => (int) ceil($total_items / max(1, $per_page)),
       'total_items' => (int) $total_items,
     ];
   }
@@ -154,5 +163,6 @@ add_action('rest_api_init', function () {
   register_rest_route('api', '/menu', [
     'methods' => WP_REST_Server::READABLE,
     'callback' => 'api_get_menu',
+    'permission_callback' => 'api_permission_public',
   ]);
 });

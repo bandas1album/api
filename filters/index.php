@@ -1,38 +1,42 @@
 <?php
 
-add_filter('rest_endpoints', function($endpoints) {
-  unset($endpoints['/wp/v2/user']);
-  unset($endpoints['/wp/v2/user/(?P<id>[\d]+']);
-
-  return $endpoints;
-});
-
-add_filter('rest_url_prefix', function() {
+add_filter('rest_url_prefix', function () {
   return 'json';
 });
 
 add_filter('posts_search', function ($search, $query) {
   global $wpdb;
 
-  if (!$query->get('s')) return $search;
+  if (!$query->get('s')) {
+    return $search;
+  }
 
-  $q = esc_sql($query->get('s'));
+  // Only customize search for album queries (avoid altering admin/core searches).
+  $post_type = $query->get('post_type');
+  if ($post_type !== 'album' && !(is_array($post_type) && in_array('album', $post_type, true))) {
+    return $search;
+  }
 
-  return "
-    AND (
-      {$wpdb->posts}.post_title LIKE '%{$q}%'
-      OR {$wpdb->posts}.post_content LIKE '%{$q}%'
+  $like = '%' . $wpdb->esc_like($query->get('s')) . '%';
+
+  return $wpdb->prepare(
+    " AND (
+      {$wpdb->posts}.post_title LIKE %s
+      OR {$wpdb->posts}.post_content LIKE %s
       OR EXISTS (
         SELECT 1 FROM {$wpdb->postmeta}
         WHERE post_id = {$wpdb->posts}.ID
-        AND meta_key = 'artist'
-        AND meta_value LIKE '%{$q}%'
+          AND meta_key = 'artist'
+          AND meta_value LIKE %s
       )
-    )
-  ";
+    ) ",
+    $like,
+    $like,
+    $like
+  );
 }, 10, 2);
 
-add_filter('manage_album_posts_columns', function($columns) {
+add_filter('manage_album_posts_columns', function ($columns) {
   $new = [];
 
   foreach ($columns as $key => $label) {
