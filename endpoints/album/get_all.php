@@ -74,18 +74,24 @@ function api_album_get_all($request) {
   }
 
   if ($category === 'year') {
+    $year = absint($slug);
+    if ($year < 1900 || $year > 2100) {
+      return new WP_Error('error', 'Ano inválido.', ['status' => 400]);
+    }
+
     $args['meta_query'][] = [
-      'key' => 'released',
-      'value' => $slug,
-      'compare' => 'LIKE',
+      'key' => 'released_year',
+      'value' => $year,
+      'compare' => '=',
+      'type' => 'NUMERIC',
     ];
 
     $response['meta']['context'] = [
       'type' => 'year',
       'page' => 'Ano de lançamento',
-      'title' => $slug,
-      'slug' => $slug,
-      'description' => api_get_year_meta_description($slug),
+      'title' => (string) $year,
+      'slug' => (string) $year,
+      'description' => api_get_year_meta_description((string) $year),
     ];
   }
 
@@ -98,21 +104,18 @@ function api_album_get_all($request) {
     'total_items' => (int) $query->found_posts,
   ];
 
-  while ($query->have_posts()) {
-    $query->the_post();
-    $post_id = get_the_ID();
-    $cover = get_post_meta($post_id, 'cover', true);
-    $cover_src = $cover ? wp_get_attachment_image_src($cover, 'thumbnail') : null;
-    $cover_url = is_array($cover_src) ? $cover_src[0] : null;
+  $post_ids = wp_list_pluck($query->posts, 'ID');
+  $covers = api_album_cover_urls($post_ids, 'thumbnail');
 
+  foreach ($query->posts as $post) {
+    $post_id = (int) $post->ID;
     $response['data'][] = [
-      'title' => html_entity_decode(get_the_title()),
+      'title' => html_entity_decode(get_the_title($post_id)),
       'artist' => get_post_meta($post_id, 'artist', true),
-      'slug' => get_post_field('post_name', $post_id),
-      'cover' => $cover_url,
+      'slug' => $post->post_name,
+      'cover' => $covers[$post_id] ?? null,
     ];
   }
-  wp_reset_postdata();
 
   return rest_ensure_response($response);
 }

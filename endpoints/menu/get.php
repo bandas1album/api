@@ -16,7 +16,7 @@ function api_get_menu($request) {
     'meta' => [],
   ];
 
-  if ($type === 'album') {
+    if ($type === 'album') {
     $query = new WP_Query([
       'post_type' => 'album',
       'post_status' => 'publish',
@@ -26,22 +26,18 @@ function api_get_menu($request) {
       'paged' => $page,
     ]);
 
-    while ($query->have_posts()) {
-      $query->the_post();
-      $post_id = get_the_ID();
+    $post_ids = wp_list_pluck($query->posts, 'ID');
+    $covers = api_album_cover_urls($post_ids, 'thumbnail');
 
-      $cover = get_post_meta($post_id, 'cover', true);
-      $cover_src = $cover ? wp_get_attachment_image_src($cover, 'thumbnail') : null;
-      $cover_url = is_array($cover_src) ? $cover_src[0] : null;
-
+    foreach ($query->posts as $post) {
+      $post_id = (int) $post->ID;
       $response['data'][] = [
-        'title' => html_entity_decode(get_the_title()),
+        'title' => html_entity_decode(get_the_title($post_id)),
         'artist' => get_post_meta($post_id, 'artist', true),
-        'slug' => get_post_field('post_name', $post_id),
-        'cover' => $cover_url,
+        'slug' => $post->post_name,
+        'cover' => $covers[$post_id] ?? null,
       ];
     }
-    wp_reset_postdata();
 
     $response['meta']['pagination'] = [
       'page' => (int) $page,

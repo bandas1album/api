@@ -148,3 +148,24 @@ add_filter('upload_mimes', function ($mimes) {
   }
   return $mimes;
 });
+
+/**
+ * Rate-limit JWT login (plugin route is otherwise unrestricted).
+ */
+add_filter('rest_pre_dispatch', function ($result, $server, $request) {
+  if ($result !== null) {
+    return $result;
+  }
+
+  if (
+    $request->get_method() === 'POST' &&
+    $request->get_route() === '/jwt-auth/v1/token'
+  ) {
+    $limit = api_rate_limit('jwt_token', 5, 900);
+    if (is_wp_error($limit)) {
+      return $limit;
+    }
+  }
+
+  return $result;
+}, 10, 3);

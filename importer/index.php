@@ -443,6 +443,7 @@ function bandas_import_process_row( $linha, $row ) {
 	update_post_meta( $post_id, 'artist', bandas_import_field( $row, $map, 'artist' ) );
 	update_post_meta( $post_id, 'label', bandas_import_field( $row, $map, 'label' ) );
 	update_post_meta( $post_id, 'released', bandas_import_parse_released( bandas_import_field( $row, $map, 'released' ) ) );
+	api_sync_released_year( $post_id );
 	update_post_meta( $post_id, 'tracklist', bandas_import_parse_tracklist( bandas_import_field( $row, $map, 'tracklist' ) ) );
 	update_post_meta( $post_id, 'links', bandas_import_build_links( $row, $map ) );
 

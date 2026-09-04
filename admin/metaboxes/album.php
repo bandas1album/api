@@ -135,6 +135,10 @@ add_action('save_post', function ($post_id) {
     if (!empty($_POST['released'])) {
         $date = str_replace('T', 'T', $_POST['released']) . ':00.000Z';
         update_post_meta($post_id, 'released', sanitize_text_field($date));
+        api_sync_released_year($post_id);
+    } else {
+        delete_post_meta($post_id, 'released');
+        delete_post_meta($post_id, 'released_year');
     }
 
     $allowed_platforms = ['amazon', 'deezer', 'lastfm', 'spotify', 'youtube', 'wikipedia', 'download'];

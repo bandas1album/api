@@ -58,6 +58,8 @@ function api_album_post($request) {
     return $post_id;
   }
 
+  api_sync_released_year($post_id);
+
   require_once ABSPATH . 'wp-admin/includes/image.php';
   require_once ABSPATH . 'wp-admin/includes/file.php';
   require_once ABSPATH . 'wp-admin/includes/media.php';
