@@ -10,11 +10,34 @@ add_action('add_meta_boxes', function () {
         'album_details',
         'Detalhes do Álbum',
         'render_album_details_metabox',
-        'album', // ajuste se o post type tiver outro slug
+        'album',
         'normal',
         'high'
     );
 });
+
+function bandas_album_track_row_html($track = []) {
+    $name = esc_attr($track['name'] ?? '');
+    $duration = esc_attr($track['duration'] ?? '');
+    $youtube_url = esc_attr($track['youtube_url'] ?? '');
+    $description = esc_textarea($track['description'] ?? '');
+    $lyrics = esc_textarea($track['lyrics'] ?? '');
+
+    return '
+        <div class="track-row">
+            <div class="track-row-main">
+                <input type="text" name="track_name[]" placeholder="Nome da faixa" value="' . $name . '">
+                <input type="text" name="track_duration[]" placeholder="Duração (ex: 6:00)" value="' . $duration . '" style="max-width:120px;">
+                <button type="button" class="button remove-track">Remover</button>
+            </div>
+            <div class="track-row-extra">
+                <input type="url" name="track_youtube_url[]" placeholder="URL do YouTube (faixa)" value="' . $youtube_url . '">
+                <textarea name="track_description[]" rows="2" placeholder="Sobre a faixa (opcional)">' . $description . '</textarea>
+                <textarea name="track_lyrics[]" rows="3" placeholder="Letra (opcional)">' . $lyrics . '</textarea>
+            </div>
+        </div>
+    ';
+}
 
 function render_album_details_metabox($post) {
     wp_nonce_field('album_details_save', 'album_details_nonce');
@@ -24,7 +47,7 @@ function render_album_details_metabox($post) {
     $label     = get_post_meta($post->ID, 'label', true);
     $released  = get_post_meta($post->ID, 'released', true);
     $links     = json_decode(get_post_meta($post->ID, 'links', true), true) ?: [];
-    $tracklist = json_decode(get_post_meta($post->ID, 'tracklist', true), true) ?: [];
+    $tracklist = api_normalize_album_tracklist(get_post_meta($post->ID, 'tracklist', true));
 
     $link_platforms = ['amazon', 'deezer', 'lastfm', 'spotify', 'youtube', 'wikipedia', 'download'];
     ?>
@@ -32,8 +55,20 @@ function render_album_details_metabox($post) {
         .album-field { margin-bottom: 14px; }
         .album-field label { display:block; font-weight:600; margin-bottom:4px; }
         .album-field input[type=text], .album-field input[type=datetime-local] { width:100%; }
-        #tracklist-rows .track-row { display:flex; gap:8px; margin-bottom:6px; }
-        #tracklist-rows .track-row input { flex:1; }
+        #tracklist-rows .track-row {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding: 12px;
+            border: 1px solid #c3c4c7;
+            background: #fff;
+        }
+        #tracklist-rows .track-row-main { display:flex; gap:8px; align-items:center; }
+        #tracklist-rows .track-row-main input { flex:1; }
+        #tracklist-rows .track-row-extra { display:flex; flex-direction:column; gap:8px; }
+        #tracklist-rows .track-row-extra input,
+        #tracklist-rows .track-row-extra textarea { width:100%; }
     </style>
 
     <div class="album-field">
@@ -69,31 +104,33 @@ function render_album_details_metabox($post) {
     <?php endforeach; ?>
 
     <h4>Faixas</h4>
+    <p class="description">Campos separados por faixa. O front recebe tudo em JSON via API (inclui youtube_id normalizado).</p>
     <div id="tracklist-rows">
-        <?php foreach ($tracklist as $track): ?>
-            <div class="track-row">
-                <input type="text" name="track_name[]" placeholder="Nome da faixa"
-                       value="<?php echo esc_attr($track['name'] ?? ''); ?>">
-                <input type="text" name="track_duration[]" placeholder="Duração (ex: 6:00)"
-                       value="<?php echo esc_attr($track['duration'] ?? ''); ?>" style="max-width:120px;">
-                <button type="button" class="button remove-track">Remover</button>
-            </div>
-        <?php endforeach; ?>
+        <?php
+        if (empty($tracklist)) {
+            echo bandas_album_track_row_html();
+        } else {
+            foreach ($tracklist as $track) {
+                echo bandas_album_track_row_html($track);
+            }
+        }
+        ?>
     </div>
     <button type="button" class="button" id="add-track">+ Adicionar faixa</button>
 
     <script>
     jQuery(function ($) {
+        var trackRowTemplate = <?php echo wp_json_encode(bandas_album_track_row_html()); ?>;
+
         $('#add-track').on('click', function () {
-            $('#tracklist-rows').append(
-                '<div class="track-row">' +
-                '<input type="text" name="track_name[]" placeholder="Nome da faixa">' +
-                '<input type="text" name="track_duration[]" placeholder="Duração (ex: 6:00)" style="max-width:120px;">' +
-                '<button type="button" class="button remove-track">Remover</button>' +
-                '</div>'
-            );
+            $('#tracklist-rows').append(trackRowTemplate);
         });
         $(document).on('click', '.remove-track', function () {
+            var $rows = $('#tracklist-rows .track-row');
+            if ($rows.length <= 1) {
+                $(this).closest('.track-row').find('input, textarea').val('');
+                return;
+            }
             $(this).closest('.track-row').remove();
         });
 
@@ -152,15 +189,23 @@ add_action('save_post', function ($post_id) {
     }
     update_post_meta($post_id, 'links', wp_json_encode($links));
 
-    $tracklist = [];
     $names = $_POST['track_name'] ?? [];
     $durations = $_POST['track_duration'] ?? [];
+    $youtube_urls = $_POST['track_youtube_url'] ?? [];
+    $descriptions = $_POST['track_description'] ?? [];
+    $lyrics = $_POST['track_lyrics'] ?? [];
+
+    $raw_tracks = [];
     foreach ($names as $i => $name) {
-        if (trim($name) === '') continue;
-        $tracklist[] = [
-            'name' => sanitize_text_field($name),
-            'duration' => sanitize_text_field($durations[$i] ?? ''),
+        $raw_tracks[] = [
+            'name' => $name,
+            'duration' => $durations[$i] ?? '',
+            'youtube_url' => $youtube_urls[$i] ?? '',
+            'description' => $descriptions[$i] ?? '',
+            'lyrics' => $lyrics[$i] ?? '',
         ];
     }
+
+    $tracklist = api_normalize_album_tracklist($raw_tracks);
     update_post_meta($post_id, 'tracklist', wp_json_encode($tracklist));
 });

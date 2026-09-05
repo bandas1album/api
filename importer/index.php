@@ -552,9 +552,9 @@ function bandas_import_parse_tracklist( $raw ) {
 		return '[]';
 	}
 	if ( '[' === $raw[0] ) {
-		json_decode( $raw );
-		if ( JSON_ERROR_NONE === json_last_error() ) {
-			return $raw; // já é JSON válido
+		$decoded = json_decode( $raw, true );
+		if ( JSON_ERROR_NONE === json_last_error() && is_array( $decoded ) ) {
+			return wp_json_encode( api_normalize_album_tracklist( $decoded ), JSON_UNESCAPED_UNICODE );
 		}
 	}
 	$tracks = array();
@@ -593,7 +593,7 @@ function bandas_import_parse_tracklist( $raw ) {
 			}
 		}
 	}
-	return wp_json_encode( $tracks, JSON_UNESCAPED_UNICODE );
+	return wp_json_encode( api_normalize_album_tracklist( $tracks ), JSON_UNESCAPED_UNICODE );
 }
 
 function bandas_import_build_links( $row, $map ) {

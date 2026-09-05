@@ -19,22 +19,7 @@ function api_album_post($request) {
   }
 
   $tracklist = $request['tracklist'] ?? [];
-  if (is_string($tracklist)) {
-    $decoded = json_decode($tracklist, true);
-    $tracklist = is_array($decoded) ? $decoded : [];
-  }
-  if (!is_array($tracklist)) {
-    $tracklist = [];
-  }
-  $tracklist = array_values(array_filter(array_map(function ($track) {
-    if (!is_array($track)) {
-      return null;
-    }
-    return [
-      'name' => sanitize_text_field($track['name'] ?? ''),
-      'duration' => sanitize_text_field($track['duration'] ?? ''),
-    ];
-  }, $tracklist)));
+  $tracklist = api_normalize_album_tracklist($tracklist);
 
   if (empty($title) || empty($artist) || empty($released) || empty($files['cover'])) {
     return new WP_Error('error', esc_html__('Preencha todos os campos para publicar este álbum.'), ['status' => 400]);

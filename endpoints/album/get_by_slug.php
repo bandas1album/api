@@ -53,7 +53,7 @@ function api_album_get_by_slug($request) {
     'country' => $country,
     'label' => get_post_meta($album->ID, 'label', true),
     'links' => json_decode(get_post_meta($album->ID, 'links', true)),
-    'tracklist' => json_decode(get_post_meta($album->ID, 'tracklist', true)),
+    'tracklist' => api_normalize_album_tracklist(get_post_meta($album->ID, 'tracklist', true)),
   ];
 
   return rest_ensure_response($response);
