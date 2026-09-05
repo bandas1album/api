@@ -15,12 +15,9 @@ function api_allowed_origins() {
   $origins = [
     'https://bandas1album.com.br',
     'https://www.bandas1album.com.br',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
   ];
-
-  if (defined('WP_ENVIRONMENT_TYPE') && WP_ENVIRONMENT_TYPE === 'local') {
-    $origins[] = 'http://localhost:3000';
-    $origins[] = 'http://127.0.0.1:3000';
-  }
 
   /**
    * @param string[] $origins
