@@ -39,6 +39,49 @@ function bandas_album_track_row_html($track = []) {
     ';
 }
 
+/**
+ * Converte meta `released` para value de <input type="datetime-local">.
+ */
+function bandas_album_released_for_input($released) {
+    $released = trim((string) $released);
+    if ($released === '') {
+        return '';
+    }
+
+    // Já está no formato datetime-local (sem segundos) ou com segundos
+    if (preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/', $released)) {
+        return substr($released, 0, 16);
+    }
+
+    $ts = strtotime(str_replace('T', ' ', $released));
+    if (!$ts) {
+        return '';
+    }
+
+    return gmdate('Y-m-d\TH:i', $ts);
+}
+
+/**
+ * Normaliza o valor enviado pelo datetime-local para o meta ISO usado na API.
+ */
+function bandas_album_normalize_released_meta($raw) {
+    $raw = trim((string) $raw);
+    if ($raw === '') {
+        return '';
+    }
+
+    if (preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/', $raw)) {
+        return substr($raw, 0, 16) . ':00.000Z';
+    }
+
+    $ts = strtotime($raw);
+    if (!$ts) {
+        return '';
+    }
+
+    return gmdate('Y-m-d\TH:i:s', $ts) . '.000Z';
+}
+
 function render_album_details_metabox($post) {
     wp_nonce_field('album_details_save', 'album_details_nonce');
 
@@ -50,6 +93,7 @@ function render_album_details_metabox($post) {
     $tracklist = api_normalize_album_tracklist(get_post_meta($post->ID, 'tracklist', true));
 
     $link_platforms = ['amazon', 'deezer', 'lastfm', 'spotify', 'youtube', 'wikipedia', 'download'];
+    $released_input = bandas_album_released_for_input($released);
     ?>
     <style>
         .album-field { margin-bottom: 14px; }
@@ -91,7 +135,7 @@ function render_album_details_metabox($post) {
 
     <div class="album-field">
         <label>Data de lançamento</label>
-        <input type="datetime-local" name="released" value="<?php echo esc_attr(substr($released, 0, 16)); ?>">
+        <input type="datetime-local" name="released" value="<?php echo esc_attr($released_input); ?>">
     </div>
 
     <h4>Links</h4>
@@ -169,13 +213,15 @@ add_action('save_post', function ($post_id) {
     update_post_meta($post_id, 'cover', absint($_POST['cover'] ?? 0));
     update_post_meta($post_id, 'label', sanitize_text_field($_POST['label'] ?? ''));
 
-    if (!empty($_POST['released'])) {
-        $date = str_replace('T', 'T', $_POST['released']) . ':00.000Z';
-        update_post_meta($post_id, 'released', sanitize_text_field($date));
-        api_sync_released_year($post_id);
-    } else {
-        delete_post_meta($post_id, 'released');
-        delete_post_meta($post_id, 'released_year');
+    if (array_key_exists('released', $_POST)) {
+        $normalized = bandas_album_normalize_released_meta($_POST['released'] ?? '');
+        if ($normalized !== '') {
+            update_post_meta($post_id, 'released', sanitize_text_field($normalized));
+            api_sync_released_year($post_id);
+        } else {
+            delete_post_meta($post_id, 'released');
+            delete_post_meta($post_id, 'released_year');
+        }
     }
 
     $allowed_platforms = ['amazon', 'deezer', 'lastfm', 'spotify', 'youtube', 'wikipedia', 'download'];
@@ -189,7 +235,12 @@ add_action('save_post', function ($post_id) {
     }
     update_post_meta($post_id, 'links', wp_json_encode($links));
 
-    $names = $_POST['track_name'] ?? [];
+    // Só atualiza tracklist se o repeater veio no POST (evita apagar por save sem metabox / POST truncado)
+    if (!isset($_POST['track_name']) || !is_array($_POST['track_name'])) {
+        return;
+    }
+
+    $names = $_POST['track_name'];
     $durations = $_POST['track_duration'] ?? [];
     $youtube_urls = $_POST['track_youtube_url'] ?? [];
     $descriptions = $_POST['track_description'] ?? [];
@@ -199,13 +250,13 @@ add_action('save_post', function ($post_id) {
     foreach ($names as $i => $name) {
         $raw_tracks[] = [
             'name' => $name,
-            'duration' => $durations[$i] ?? '',
-            'youtube_url' => $youtube_urls[$i] ?? '',
-            'description' => $descriptions[$i] ?? '',
-            'lyrics' => $lyrics[$i] ?? '',
+            'duration' => is_array($durations) ? ($durations[$i] ?? '') : '',
+            'youtube_url' => is_array($youtube_urls) ? ($youtube_urls[$i] ?? '') : '',
+            'description' => is_array($descriptions) ? ($descriptions[$i] ?? '') : '',
+            'lyrics' => is_array($lyrics) ? ($lyrics[$i] ?? '') : '',
         ];
     }
 
     $tracklist = api_normalize_album_tracklist($raw_tracks);
-    update_post_meta($post_id, 'tracklist', wp_json_encode($tracklist));
+    update_post_meta($post_id, 'tracklist', wp_json_encode($tracklist, JSON_UNESCAPED_UNICODE));
 });

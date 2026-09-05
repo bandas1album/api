@@ -1,7 +1,9 @@
 <?php
 
 /**
- * Dispara revalidação on-demand do front (Next.js ISR) após salvar um álbum.
+ * Dispara revalidação on-demand do front (Next.js ISR) ao criar/atualizar álbum.
+ *
+ * Hook: wp_after_insert_post (post type album) — não depende do metabox/tracklist.
  *
  * Configure em Álbuns → Revalidação do front, ou via constantes:
  *   define('BANDAS_REVALIDATE_URL', 'https://bandas1album.com.br/api/revalidate');
@@ -102,7 +104,11 @@ function bandas_request_frontend_revalidate($post_id) {
   ]);
 }
 
-add_action('save_post', function ($post_id, $post) {
+/**
+ * Após criar ou atualizar um álbum (não amarrado ao metabox/tracklist).
+ * Roda depois do save_post, quando título/status/meta já foram persistidos.
+ */
+add_action('wp_after_insert_post', function ($post_id, $post, $update) {
   if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
     return;
   }
@@ -116,9 +122,9 @@ add_action('save_post', function ($post_id, $post) {
     return;
   }
 
-  // Priority 20: depois do metabox (10) gravar tracklist/meta
+  unset($update);
   bandas_request_frontend_revalidate($post_id);
-}, 20, 2);
+}, 10, 3);
 
 add_action('admin_menu', function () {
   add_submenu_page(
@@ -157,9 +163,11 @@ function bandas_render_revalidate_settings_page() {
   <div class="wrap">
     <h1>Revalidação do front</h1>
     <p>
-      Ao salvar um álbum publicado, o WordPress chama o Next.js
+      Ao <strong>criar ou atualizar</strong> um álbum publicado, o WordPress chama o Next.js
       (<code>POST /api/revalidate</code>) para limpar o cache ISR da página do álbum,
-      da home e das listagens de gênero/país/ano relacionadas.
+      da home e das listagens de gênero/país/ano relacionadas. O hook é o
+      <code>wp_after_insert_post</code> do post type <code>album</code> — independente
+      do metabox de faixas.
     </p>
     <p>
       O segredo deve ser o mesmo valor de <code>REVALIDATE_SECRET</code> no front
