@@ -14,7 +14,7 @@ function api_extract_youtube_id($input) {
   }
 
   $patterns = [
-    '/(?:youtube\.com\/watch\?[^#]*v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/i',
+    '/(?:youtube\.com\/watch\?(?:[^#]*&)?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/|music\.youtube\.com\/watch\?(?:[^#]*&)?v=)([a-zA-Z0-9_-]{11})/i',
     '/[?&]v=([a-zA-Z0-9_-]{11})/i',
   ];
 
@@ -43,15 +43,22 @@ function api_normalize_album_track($track) {
     return null;
   }
 
-  $youtube_url = esc_url_raw($track['youtube_url'] ?? '');
-  if ($youtube_url === '' && !empty($track['youtube_id'])) {
-    $maybe_id = api_extract_youtube_id($track['youtube_id']);
-    if ($maybe_id !== '') {
-      $youtube_url = 'https://www.youtube.com/watch?v=' . $maybe_id;
-    }
+  $youtube_url_raw = trim((string) ($track['youtube_url'] ?? ''));
+  // esc_url_raw pode falhar em alguns formatos; extrai o ID antes e reconstrói URL canônica
+  $youtube_id_from_fields = api_extract_youtube_id(
+    $youtube_url_raw !== '' ? $youtube_url_raw : ($track['youtube_id'] ?? '')
+  );
+
+  $youtube_url = '';
+  if ($youtube_id_from_fields !== '') {
+    $youtube_url = 'https://www.youtube.com/watch?v=' . $youtube_id_from_fields;
+  } elseif ($youtube_url_raw !== '') {
+    $youtube_url = esc_url_raw($youtube_url_raw) ?: '';
   }
 
-  $youtube_id = api_extract_youtube_id($youtube_url !== '' ? $youtube_url : ($track['youtube_id'] ?? ''));
+  $youtube_id = $youtube_id_from_fields !== ''
+    ? $youtube_id_from_fields
+    : api_extract_youtube_id($youtube_url !== '' ? $youtube_url : ($track['youtube_id'] ?? ''));
 
   return [
     'name' => $name,
