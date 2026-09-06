@@ -29,7 +29,7 @@ function bandas_import_column_map() {
 		'country'   => 'País',
 		'cover_url' => 'Capa (URL)',
 		'tracklist' => 'Faixas',
-		'amazon'    => 'Amazon',
+		'afiliado'  => 'Afiliado',
 		'deezer'    => 'Deezer',
 		'lastfm'    => 'Last.fm',
 		'spotify'   => 'Spotify',
@@ -52,6 +52,13 @@ add_action( 'admin_menu', function () {
 		'dashicons-upload',       // ícone (veja outros em developer.wordpress.org/resource/dashicons)
 		6                          // posição no menu — ajuste se quiser mais acima/abaixo
 	);
+} );
+
+add_action( 'admin_enqueue_scripts', function ( $hook ) {
+	if ( $hook !== 'toplevel_page_bandas-importer' ) {
+		return;
+	}
+	wp_enqueue_script( 'jquery-ui-autocomplete' );
 } );
 
 function bandas_import_render_page() {
@@ -132,9 +139,9 @@ function bandas_import_render_page() {
 					<tr><th><label>Álbum (título)</label></th><td><input type="text" name="title" class="regular-text" required></td></tr>
 					<tr><th><label>Artista</label></th><td><input type="text" name="artist" class="regular-text"></td></tr>
 					<tr><th><label>Ano / Data</label></th><td><input type="text" name="released" class="regular-text" placeholder="1970 ou 1970-05-01"></td></tr>
-					<tr><th><label>Gravadora</label></th><td><input type="text" name="label" class="regular-text"></td></tr>
-					<tr><th><label>Gênero</label></th><td><input type="text" name="genre" class="regular-text" placeholder="Psychedelic Rock; Rock & Roll"></td></tr>
-					<tr><th><label>País</label></th><td><input type="text" name="country" class="regular-text" placeholder="Inglaterra"></td></tr>
+					<tr><th><label>Gravadora</label></th><td><input type="text" name="label" id="bandas-import-label" class="regular-text" autocomplete="off"></td></tr>
+					<tr><th><label>Gênero</label></th><td><input type="text" name="genre" id="bandas-import-genre" class="regular-text" placeholder="Psychedelic Rock; Rock & Roll" autocomplete="off"></td></tr>
+					<tr><th><label>País</label></th><td><input type="text" name="country" id="bandas-import-country" class="regular-text" placeholder="Inglaterra" autocomplete="off"></td></tr>
 					<tr><th><label>Capa (URL)</label></th><td><input type="url" name="cover_url" class="regular-text" placeholder="https://..."></td></tr>
 					<tr><th><label>Tracklist</label></th>
 						<td>
@@ -163,8 +170,106 @@ function bandas_import_render_page() {
 			</table>
 		</div><!-- /#bandas-tab-individual -->
 
+		<style>
+			.ui-autocomplete {
+				z-index: 100000;
+				max-height: 220px;
+				overflow-y: auto;
+				background: #fff;
+				border: 1px solid #c3c4c7;
+				box-shadow: 0 2px 6px rgba(0,0,0,.08);
+				padding: 0;
+				margin: 0;
+				list-style: none;
+			}
+			.ui-autocomplete .ui-menu-item-wrapper {
+				display: block;
+				padding: 6px 10px;
+				cursor: pointer;
+			}
+			.ui-autocomplete .ui-state-active,
+			.ui-autocomplete .ui-menu-item-wrapper.ui-state-active {
+				background: #2271b1;
+				color: #fff;
+			}
+		</style>
 		<script>
 		(function () {
+			var searchConfig = <?php echo wp_json_encode([
+				'url' => admin_url('admin-ajax.php'),
+				'label' => [
+					'action' => 'bandas_search_labels',
+					'nonce' => wp_create_nonce('bandas_search_labels'),
+				],
+				'terms' => [
+					'action' => 'bandas_search_terms',
+					'nonce' => wp_create_nonce('bandas_search_terms'),
+				],
+			]); ?>;
+
+			function bindMetaAutocomplete(selector, conf) {
+				if (!window.jQuery || !jQuery.fn.autocomplete) return;
+				jQuery(selector).autocomplete({
+					minLength: 1,
+					source: function (request, response) {
+						jQuery.getJSON(searchConfig.url, {
+							action: conf.action,
+							nonce: conf.nonce,
+							q: request.term
+						}).done(function (payload) {
+							var items = (payload && payload.success && payload.data) ? payload.data : [];
+							response(jQuery.map(items, function (item) {
+								return { label: item.name, value: item.name };
+							}));
+						}).fail(function () {
+							response([]);
+						});
+					}
+				});
+			}
+
+			function bindTermAutocomplete(selector, taxonomy) {
+				if (!window.jQuery || !jQuery.fn.autocomplete) return;
+				jQuery(selector).autocomplete({
+					minLength: 1,
+					source: function (request, response) {
+						var raw = request.term || '';
+						var parts = raw.split(/[;,]/);
+						var current = jQuery.trim(parts[parts.length - 1] || '');
+						if (!current) {
+							response([]);
+							return;
+						}
+						jQuery.getJSON(searchConfig.url, {
+							action: searchConfig.terms.action,
+							nonce: searchConfig.terms.nonce,
+							taxonomy: taxonomy,
+							q: current
+						}).done(function (payload) {
+							var items = (payload && payload.success && payload.data) ? payload.data : [];
+							response(jQuery.map(items, function (item) {
+								return {
+									label: item.name,
+									value: item.name,
+									prefix: jQuery.trim(parts.slice(0, -1).join('; '))
+								};
+							}));
+						}).fail(function () {
+							response([]);
+						});
+					},
+					select: function (_event, ui) {
+						var prefix = ui.item.prefix ? (ui.item.prefix + '; ') : '';
+						jQuery(this).val(prefix + ui.item.value);
+						return false;
+					}
+				});
+			}
+
+			bindMetaAutocomplete('#bandas-import-label', searchConfig.label);
+			bindTermAutocomplete('#bandas-import-genre', 'genre');
+			bindTermAutocomplete('#bandas-import-country', 'country');
+
 			document.querySelectorAll('.bandas-tab-link').forEach(function (link) {
 				link.addEventListener('click', function (e) {
 					e.preventDefault();

@@ -13,6 +13,7 @@ add_filter('_wp_post_revision_meta_keys', function ($keys) {
     'released_year',
     'links',
     'tracklist',
+    'credits',
   ];
 
   return array_values(array_unique(array_merge($keys, $album_keys)));

@@ -7,6 +7,9 @@ require_once $dirbase . '/security/index.php';
 // Admin
 require_once $dirbase . '/admin/metaboxes/album.php';
 require_once $dirbase . '/admin/metaboxes/taxonomy.php';
+require_once $dirbase . '/admin/ajax/person_search.php';
+require_once $dirbase . '/admin/ajax/label_search.php';
+require_once $dirbase . '/admin/ajax/term_search.php';
 
 // Utils
 require_once $dirbase . '/utils/index.php';

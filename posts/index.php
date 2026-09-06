@@ -10,6 +10,24 @@ register_post_type('album', [
   'rewrite' => ['slug' => 'albums'],
 ]);
 
+register_post_type('person', [
+  'label' => 'Pessoas',
+  'labels' => [
+    'name' => 'Pessoas',
+    'singular_name' => 'Pessoa',
+    'add_new_item' => 'Adicionar pessoa',
+    'edit_item' => 'Editar pessoa',
+    'search_items' => 'Buscar pessoas',
+    'not_found' => 'Nenhuma pessoa encontrada',
+  ],
+  'public' => true,
+  'show_in_rest' => false,
+  'supports' => ['title'],
+  'menu_icon' => 'dashicons-groups',
+  'has_archive' => false,
+  'rewrite' => ['slug' => 'person'],
+]);
+
 register_taxonomy('genre', 'album', [
   'label' => 'Gênero',
   'public' => true,

@@ -39,6 +39,30 @@ function bandas_album_track_row_html($track = []) {
     ';
 }
 
+function bandas_album_credit_row_html($credit = []) {
+    $person_id = absint($credit['person_id'] ?? 0);
+    $name = esc_attr($credit['name'] ?? '');
+    $detail = esc_attr($credit['detail'] ?? '');
+    $role = api_sanitize_credit_role($credit['role'] ?? 'musician');
+    $roles = api_credit_roles();
+
+    $options = '';
+    foreach ($roles as $value => $label) {
+        $selected = selected($role, $value, false);
+        $options .= '<option value="' . esc_attr($value) . '" ' . $selected . '>' . esc_html($label) . '</option>';
+    }
+
+    return '
+        <div class="credit-row">
+            <input type="hidden" name="credit_person_id[]" class="credit-person-id" value="' . esc_attr((string) $person_id) . '">
+            <input type="text" name="credit_name[]" class="credit-name" placeholder="Nome (buscar pessoa)" value="' . $name . '" autocomplete="off">
+            <select name="credit_role[]" class="credit-role">' . $options . '</select>
+            <input type="text" name="credit_detail[]" class="credit-detail" placeholder="Detalhe (instrumento, gravação…)" value="' . $detail . '">
+            <button type="button" class="button remove-credit">Remover</button>
+        </div>
+    ';
+}
+
 /**
  * Converte meta `released` para value de <input type="datetime-local">.
  */
@@ -91,9 +115,20 @@ function render_album_details_metabox($post) {
     $released  = get_post_meta($post->ID, 'released', true);
     $links     = json_decode(get_post_meta($post->ID, 'links', true), true) ?: [];
     $tracklist = api_normalize_album_tracklist(get_post_meta($post->ID, 'tracklist', true));
+    $credits   = api_normalize_album_credits(get_post_meta($post->ID, 'credits', true));
 
     $link_platforms = ['amazon', 'deezer', 'lastfm', 'spotify', 'youtube', 'wikipedia', 'download'];
     $released_input = bandas_album_released_for_input($released);
+    $person_search = [
+        'url' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('bandas_search_persons'),
+        'action' => 'bandas_search_persons',
+    ];
+    $label_search = [
+        'url' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('bandas_search_labels'),
+        'action' => 'bandas_search_labels',
+    ];
     ?>
     <style>
         .album-field { margin-bottom: 14px; }
@@ -113,6 +148,40 @@ function render_album_details_metabox($post) {
         #tracklist-rows .track-row-extra { display:flex; flex-direction:column; gap:8px; }
         #tracklist-rows .track-row-extra input,
         #tracklist-rows .track-row-extra textarea { width:100%; }
+        #credits-rows .credit-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #c3c4c7;
+            background: #fff;
+        }
+        #credits-rows .credit-name { flex: 1 1 180px; min-width: 160px; }
+        #credits-rows .credit-role { flex: 0 0 150px; }
+        #credits-rows .credit-detail { flex: 1 1 160px; min-width: 140px; }
+        .ui-autocomplete {
+            z-index: 100000;
+            max-height: 220px;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid #c3c4c7;
+            box-shadow: 0 2px 6px rgba(0,0,0,.08);
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
+        .ui-autocomplete .ui-menu-item-wrapper {
+            display: block;
+            padding: 6px 10px;
+            cursor: pointer;
+        }
+        .ui-autocomplete .ui-state-active,
+        .ui-autocomplete .ui-menu-item-wrapper.ui-state-active {
+            background: #2271b1;
+            color: #fff;
+        }
     </style>
 
     <div class="album-field">
@@ -130,7 +199,8 @@ function render_album_details_metabox($post) {
 
     <div class="album-field">
         <label>Gravadora</label>
-        <input type="text" name="label" value="<?php echo esc_attr($label); ?>">
+        <input type="text" name="label" id="album-label" value="<?php echo esc_attr($label); ?>" autocomplete="off">
+        <p class="description">Busque uma gravadora já usada ou digite um nome novo.</p>
     </div>
 
     <div class="album-field">
@@ -162,9 +232,48 @@ function render_album_details_metabox($post) {
     </div>
     <button type="button" class="button" id="add-track">+ Adicionar faixa</button>
 
+    <h4>Créditos</h4>
+    <p class="description">
+        Busque uma pessoa já cadastrada ou digite um nome novo (cria o registro automaticamente no save).
+        Papel + detalhe (instrumento, gravação, etc.). O front recebe JSON com person_id, name, slug, role e detail.
+    </p>
+    <div id="credits-rows">
+        <?php
+        if (empty($credits)) {
+            echo bandas_album_credit_row_html();
+        } else {
+            foreach ($credits as $credit) {
+                echo bandas_album_credit_row_html($credit);
+            }
+        }
+        ?>
+    </div>
+    <button type="button" class="button" id="add-credit">+ Adicionar crédito</button>
+
     <script>
     jQuery(function ($) {
         var trackRowTemplate = <?php echo wp_json_encode(bandas_album_track_row_html()); ?>;
+        var creditRowTemplate = <?php echo wp_json_encode(bandas_album_credit_row_html()); ?>;
+        var personSearch = <?php echo wp_json_encode($person_search); ?>;
+        var labelSearch = <?php echo wp_json_encode($label_search); ?>;
+
+        $('#album-label').autocomplete({
+            minLength: 1,
+            source: function (request, response) {
+                $.getJSON(labelSearch.url, {
+                    action: labelSearch.action,
+                    nonce: labelSearch.nonce,
+                    q: request.term
+                }).done(function (payload) {
+                    var items = (payload && payload.success && payload.data) ? payload.data : [];
+                    response($.map(items, function (item) {
+                        return { label: item.name, value: item.name };
+                    }));
+                }).fail(function () {
+                    response([]);
+                });
+            }
+        });
 
         $('#add-track').on('click', function () {
             $('#tracklist-rows').append(trackRowTemplate);
@@ -176,6 +285,69 @@ function render_album_details_metabox($post) {
                 return;
             }
             $(this).closest('.track-row').remove();
+        });
+
+        function bindCreditAutocomplete($input) {
+            if (!$input.length || !$input.autocomplete) return;
+            $input.autocomplete({
+                minLength: 1,
+                source: function (request, response) {
+                    $.getJSON(personSearch.url, {
+                        action: personSearch.action,
+                        nonce: personSearch.nonce,
+                        q: request.term
+                    }).done(function (payload) {
+                        var items = (payload && payload.success && payload.data) ? payload.data : [];
+                        response($.map(items, function (item) {
+                            return {
+                                label: item.name,
+                                value: item.name,
+                                person_id: item.person_id,
+                                slug: item.slug
+                            };
+                        }));
+                    }).fail(function () {
+                        response([]);
+                    });
+                },
+                select: function (_event, ui) {
+                    var $row = $(this).closest('.credit-row');
+                    $row.find('.credit-person-id').val(ui.item.person_id || '');
+                    $(this).val(ui.item.value);
+                    return false;
+                },
+                change: function (_event, ui) {
+                    if (!ui.item) {
+                        $(this).closest('.credit-row').find('.credit-person-id').val('');
+                    }
+                }
+            });
+        }
+
+        $('#credits-rows .credit-name').each(function () {
+            bindCreditAutocomplete($(this));
+        });
+
+        $('#add-credit').on('click', function () {
+            var $row = $(creditRowTemplate);
+            $('#credits-rows').append($row);
+            bindCreditAutocomplete($row.find('.credit-name'));
+        });
+
+        $(document).on('click', '.remove-credit', function () {
+            var $rows = $('#credits-rows .credit-row');
+            if ($rows.length <= 1) {
+                var $row = $(this).closest('.credit-row');
+                $row.find('input[type=text], select').val('');
+                $row.find('.credit-person-id').val('');
+                $row.find('.credit-role').val('musician');
+                return;
+            }
+            $(this).closest('.credit-row').remove();
+        });
+
+        $(document).on('input', '.credit-name', function () {
+            $(this).closest('.credit-row').find('.credit-person-id').val('');
         });
 
         var coverFrame;
@@ -195,8 +367,16 @@ function render_album_details_metabox($post) {
     <?php
 }
 
-add_action('admin_enqueue_scripts', function () {
+add_action('admin_enqueue_scripts', function ($hook) {
+    if ($hook !== 'post.php' && $hook !== 'post-new.php') {
+        return;
+    }
+    $screen = function_exists('get_current_screen') ? get_current_screen() : null;
+    if (!$screen || $screen->post_type !== 'album') {
+        return;
+    }
     wp_enqueue_media();
+    wp_enqueue_script('jquery-ui-autocomplete');
 });
 
 // 3. Salva reconstruindo o mesmo formato JSON de antes
@@ -235,28 +415,37 @@ add_action('save_post', function ($post_id) {
     }
     update_post_meta($post_id, 'links', wp_json_encode($links));
 
-    // Só atualiza tracklist se o repeater veio no POST (evita apagar por save sem metabox / POST truncado)
-    if (!isset($_POST['track_name']) || !is_array($_POST['track_name'])) {
-        return;
+    // Tracklist: só atualiza se o repeater veio no POST
+    if (isset($_POST['track_name']) && is_array($_POST['track_name'])) {
+        $names = $_POST['track_name'];
+        $durations = $_POST['track_duration'] ?? [];
+        $youtube_urls = $_POST['track_youtube_url'] ?? [];
+        $descriptions = $_POST['track_description'] ?? [];
+        $lyrics = $_POST['track_lyrics'] ?? [];
+
+        $raw_tracks = [];
+        foreach ($names as $i => $name) {
+            $raw_tracks[] = [
+                'name' => $name,
+                'duration' => is_array($durations) ? ($durations[$i] ?? '') : '',
+                'youtube_url' => is_array($youtube_urls) ? ($youtube_urls[$i] ?? '') : '',
+                'description' => is_array($descriptions) ? ($descriptions[$i] ?? '') : '',
+                'lyrics' => is_array($lyrics) ? ($lyrics[$i] ?? '') : '',
+            ];
+        }
+
+        $tracklist = api_normalize_album_tracklist($raw_tracks);
+        update_post_meta($post_id, 'tracklist', wp_json_encode($tracklist, JSON_UNESCAPED_UNICODE));
     }
 
-    $names = $_POST['track_name'];
-    $durations = $_POST['track_duration'] ?? [];
-    $youtube_urls = $_POST['track_youtube_url'] ?? [];
-    $descriptions = $_POST['track_description'] ?? [];
-    $lyrics = $_POST['track_lyrics'] ?? [];
-
-    $raw_tracks = [];
-    foreach ($names as $i => $name) {
-        $raw_tracks[] = [
-            'name' => $name,
-            'duration' => is_array($durations) ? ($durations[$i] ?? '') : '',
-            'youtube_url' => is_array($youtube_urls) ? ($youtube_urls[$i] ?? '') : '',
-            'description' => is_array($descriptions) ? ($descriptions[$i] ?? '') : '',
-            'lyrics' => is_array($lyrics) ? ($lyrics[$i] ?? '') : '',
-        ];
+    // Créditos: só atualiza se o repeater veio no POST
+    if (isset($_POST['credit_name']) && is_array($_POST['credit_name'])) {
+        $credits = api_credits_from_post_arrays(
+            $_POST['credit_person_id'] ?? [],
+            $_POST['credit_name'],
+            $_POST['credit_role'] ?? [],
+            $_POST['credit_detail'] ?? []
+        );
+        update_post_meta($post_id, 'credits', wp_json_encode($credits, JSON_UNESCAPED_UNICODE));
     }
-
-    $tracklist = api_normalize_album_tracklist($raw_tracks);
-    update_post_meta($post_id, 'tracklist', wp_json_encode($tracklist, JSON_UNESCAPED_UNICODE));
 });
