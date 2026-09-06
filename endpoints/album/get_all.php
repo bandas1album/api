@@ -109,11 +109,14 @@ function api_album_get_all($request) {
 
   foreach ($query->posts as $post) {
     $post_id = (int) $post->ID;
+    $released = get_post_meta($post_id, 'released', true);
     $response['data'][] = [
       'title' => html_entity_decode(get_the_title($post_id)),
       'artist' => get_post_meta($post_id, 'artist', true),
       'slug' => $post->post_name,
       'cover' => $covers[$post_id] ?? null,
+      'released' => $released ? (string) $released : null,
+      'modified' => get_post_modified_time('c', true, $post),
     ];
   }
 
