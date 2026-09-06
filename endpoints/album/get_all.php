@@ -114,6 +114,7 @@ function api_album_get_all($request) {
       'title' => html_entity_decode($person->post_title),
       'slug' => $person->post_name,
       'description' => api_get_person_meta_description($person->post_title),
+      'image' => api_get_person_photo_url($person, 'medium'),
     ];
   }
 

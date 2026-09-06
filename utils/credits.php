@@ -263,3 +263,20 @@ function api_get_person_by_slug($slug) {
 
   return $posts[0];
 }
+
+/**
+ * URL da foto (imagem destacada) da pessoa.
+ *
+ * @param int|WP_Post $person
+ * @param string $size
+ * @return string|null
+ */
+function api_get_person_photo_url($person, $size = 'medium') {
+  $post_id = $person instanceof WP_Post ? (int) $person->ID : absint($person);
+  if ($post_id <= 0 || !has_post_thumbnail($post_id)) {
+    return null;
+  }
+
+  $src = wp_get_attachment_image_src(get_post_thumbnail_id($post_id), $size);
+  return is_array($src) && !empty($src[0]) ? (string) $src[0] : null;
+}
