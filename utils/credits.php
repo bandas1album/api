@@ -92,9 +92,10 @@ function api_find_or_create_person($name) {
  * Normaliza um crédito individual para o contrato JSON do front.
  *
  * @param array|mixed $credit
+ * @param bool $include_image Inclui URL da foto (só na resposta da API).
  * @return array|null
  */
-function api_normalize_album_credit($credit) {
+function api_normalize_album_credit($credit, $include_image = false) {
   if (!is_array($credit)) {
     return null;
   }
@@ -128,20 +129,27 @@ function api_normalize_album_credit($credit) {
     return null;
   }
 
-  return [
+  $out = [
     'person_id' => $person_id,
     'name' => $name,
     'slug' => $slug,
     'role' => $role,
     'detail' => $detail,
   ];
+
+  if ($include_image) {
+    $out['image'] = api_get_person_photo_url($person_id, 'thumbnail');
+  }
+
+  return $out;
 }
 
 /**
  * @param mixed $raw JSON string|array
+ * @param bool $include_image
  * @return array<int, array>
  */
-function api_normalize_album_credits($raw) {
+function api_normalize_album_credits($raw, $include_image = false) {
   if (is_string($raw)) {
     $decoded = json_decode($raw, true);
     $raw = is_array($decoded) ? $decoded : [];
@@ -153,7 +161,7 @@ function api_normalize_album_credits($raw) {
 
   $out = [];
   foreach ($raw as $item) {
-    $normalized = api_normalize_album_credit($item);
+    $normalized = api_normalize_album_credit($item, $include_image);
     if ($normalized) {
       $out[] = $normalized;
     }
