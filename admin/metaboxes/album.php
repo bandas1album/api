@@ -115,6 +115,22 @@ function render_album_details_metabox($post) {
     $released  = get_post_meta($post->ID, 'released', true);
     $links     = json_decode(get_post_meta($post->ID, 'links', true), true) ?: [];
     $tracklist = api_normalize_album_tracklist(get_post_meta($post->ID, 'tracklist', true));
+
+    // Recuperação: se a meta atual está vazia, tenta achar faixas nas revisões.
+    $tracklist_recovered = false;
+    if (empty($tracklist) && function_exists('api_album_find_tracklist_in_revisions')) {
+        $recovered = api_album_find_tracklist_in_revisions($post->ID);
+        if (!empty($recovered)) {
+            $tracklist = $recovered;
+            $tracklist_recovered = true;
+            update_post_meta(
+                $post->ID,
+                'tracklist',
+                wp_json_encode($recovered, JSON_UNESCAPED_UNICODE)
+            );
+        }
+    }
+
     $credits   = api_normalize_album_credits(get_post_meta($post->ID, 'credits', true));
 
     $link_platforms = ['amazon', 'deezer', 'lastfm', 'spotify', 'youtube', 'wikipedia', 'download'];
@@ -219,6 +235,12 @@ function render_album_details_metabox($post) {
 
     <h4>Faixas</h4>
     <p class="description">Campos separados por faixa. O front recebe tudo em JSON via API (inclui youtube_id normalizado).</p>
+    <?php if ($tracklist_recovered) : ?>
+        <div class="notice notice-warning inline"><p>
+            A tracklist estava vazia neste post e foi <strong>recuperada automaticamente</strong> a partir das revisões.
+            Confira as faixas e clique em Atualizar para gravar.
+        </p></div>
+    <?php endif; ?>
     <div id="tracklist-rows">
         <?php
         if (empty($tracklist)) {
@@ -415,13 +437,14 @@ add_action('save_post', function ($post_id) {
     }
     update_post_meta($post_id, 'links', wp_json_encode($links));
 
-    // Tracklist: só atualiza se o repeater veio no POST
+    // Tracklist: só atualiza se o repeater veio no POST com ao menos 1 faixa válida.
+    // Nunca sobrescreve tracklist existente com [] (POST truncado / max_input_vars / UI vazia).
     if (isset($_POST['track_name']) && is_array($_POST['track_name'])) {
-        $names = $_POST['track_name'];
-        $durations = $_POST['track_duration'] ?? [];
-        $youtube_urls = $_POST['track_youtube_url'] ?? [];
-        $descriptions = $_POST['track_description'] ?? [];
-        $lyrics = $_POST['track_lyrics'] ?? [];
+        $names = wp_unslash($_POST['track_name']);
+        $durations = wp_unslash($_POST['track_duration'] ?? []);
+        $youtube_urls = wp_unslash($_POST['track_youtube_url'] ?? []);
+        $descriptions = wp_unslash($_POST['track_description'] ?? []);
+        $lyrics = wp_unslash($_POST['track_lyrics'] ?? []);
 
         $raw_tracks = [];
         foreach ($names as $i => $name) {
@@ -435,17 +458,29 @@ add_action('save_post', function ($post_id) {
         }
 
         $tracklist = api_normalize_album_tracklist($raw_tracks);
-        update_post_meta($post_id, 'tracklist', wp_json_encode($tracklist, JSON_UNESCAPED_UNICODE));
+        $existing = api_normalize_album_tracklist(get_post_meta($post_id, 'tracklist', true));
+
+        if (!empty($tracklist)) {
+            update_post_meta($post_id, 'tracklist', wp_json_encode($tracklist, JSON_UNESCAPED_UNICODE));
+        } elseif (empty($existing)) {
+            // Post realmente sem faixas — ok gravar vazio
+            update_post_meta($post_id, 'tracklist', '[]');
+        }
+        // else: POST veio vazio mas já havia faixas — preserva o existente
     }
 
     // Créditos: só atualiza se o repeater veio no POST
     if (isset($_POST['credit_name']) && is_array($_POST['credit_name'])) {
         $credits = api_credits_from_post_arrays(
-            $_POST['credit_person_id'] ?? [],
-            $_POST['credit_name'],
-            $_POST['credit_role'] ?? [],
-            $_POST['credit_detail'] ?? []
+            wp_unslash($_POST['credit_person_id'] ?? []),
+            wp_unslash($_POST['credit_name']),
+            wp_unslash($_POST['credit_role'] ?? []),
+            wp_unslash($_POST['credit_detail'] ?? [])
         );
-        update_post_meta($post_id, 'credits', wp_json_encode($credits, JSON_UNESCAPED_UNICODE));
+        $existing_credits = api_normalize_album_credits(get_post_meta($post_id, 'credits', true));
+
+        if (!empty($credits) || empty($existing_credits)) {
+            update_post_meta($post_id, 'credits', wp_json_encode($credits, JSON_UNESCAPED_UNICODE));
+        }
     }
 });

@@ -63,13 +63,21 @@ add_action('add_meta_boxes_album', function () {
 }, 20);
 
 /**
- * Após restaurar uma revisão, re-sincroniza released_year e dispara revalidate do front.
+ * Após restaurar uma revisão, re-sincroniza released_year, copia metas de créditos/tracklist
+ * e dispara revalidate do front.
  */
 add_action('wp_restore_post_revision', function ($post_id, $revision_id) {
-  unset($revision_id);
-
   if (get_post_type($post_id) !== 'album') {
     return;
+  }
+
+  // Cópia explícita — em alguns casos o core não restaura meta JSON grande.
+  foreach (['tracklist', 'credits', 'links', 'artist', 'label', 'released', 'cover'] as $key) {
+    $value = get_metadata('post', $revision_id, $key, true);
+    if ($value === '' || $value === false || $value === null) {
+      continue;
+    }
+    update_post_meta($post_id, $key, $value);
   }
 
   if (function_exists('api_sync_released_year')) {

@@ -75,13 +75,22 @@ function api_normalize_album_track($track) {
  * @return array<int, array{name: string, duration: string, youtube_url: string, youtube_id: string, description: string, lyrics: string}>
  */
 function api_normalize_album_tracklist($tracklist) {
-  if (is_string($tracklist)) {
+  // Decodifica JSON aninhado (ex.: double-encode acidental).
+  for ($i = 0; $i < 3 && is_string($tracklist); $i++) {
     $decoded = json_decode($tracklist, true);
-    $tracklist = is_array($decoded) ? $decoded : [];
+    if (json_last_error() !== JSON_ERROR_NONE) {
+      break;
+    }
+    $tracklist = $decoded;
   }
 
   if (!is_array($tracklist)) {
     return [];
+  }
+
+  // Lista associativa única? trata como um item
+  if (isset($tracklist['name']) && !isset($tracklist[0])) {
+    $tracklist = [$tracklist];
   }
 
   $normalized = [];
@@ -93,4 +102,26 @@ function api_normalize_album_tracklist($tracklist) {
   }
 
   return $normalized;
+}
+
+/**
+ * Tenta achar uma tracklist não-vazia nas revisões do álbum.
+ *
+ * @return array<int, array>|null
+ */
+function api_album_find_tracklist_in_revisions($post_id) {
+  $revisions = wp_get_post_revisions($post_id, ['posts_per_page' => 50]);
+  if (!$revisions) {
+    return null;
+  }
+
+  foreach ($revisions as $revision) {
+    $raw = get_metadata('post', $revision->ID, 'tracklist', true);
+    $normalized = api_normalize_album_tracklist($raw);
+    if (!empty($normalized)) {
+      return $normalized;
+    }
+  }
+
+  return null;
 }
