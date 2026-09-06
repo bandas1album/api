@@ -481,6 +481,7 @@ add_action('save_post', function ($post_id) {
 
         if (!empty($credits) || empty($existing_credits)) {
             update_post_meta($post_id, 'credits', wp_json_encode($credits, JSON_UNESCAPED_UNICODE));
+            api_sync_credit_person_ids($post_id);
         }
     }
 });

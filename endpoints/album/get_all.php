@@ -95,6 +95,28 @@ function api_album_get_all($request) {
     ];
   }
 
+  if ($category === 'person') {
+    $person = api_get_person_by_slug($slug);
+    if (!$person) {
+      return new WP_Error('error', 'Pessoa não encontrada.', ['status' => 404]);
+    }
+
+    $args['meta_query'][] = [
+      'key' => 'credit_person_id',
+      'value' => (int) $person->ID,
+      'compare' => '=',
+      'type' => 'NUMERIC',
+    ];
+
+    $response['meta']['context'] = [
+      'type' => 'person',
+      'page' => 'Pessoa',
+      'title' => html_entity_decode($person->post_title),
+      'slug' => $person->post_name,
+      'description' => api_get_person_meta_description($person->post_title),
+    ];
+  }
+
   $query = new WP_Query($args);
 
   $response['meta']['pagination'] = [

@@ -59,6 +59,13 @@ function bandas_album_revalidate_paths($post_id) {
     $paths[] = '/year/' . absint($year);
   }
 
+  $credits = api_normalize_album_credits(get_post_meta($post_id, 'credits', true));
+  foreach ($credits as $credit) {
+    if (!empty($credit['slug'])) {
+      $paths[] = '/person/' . $credit['slug'];
+    }
+  }
+
   return array_values(array_unique($paths));
 }
 

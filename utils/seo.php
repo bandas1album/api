@@ -82,6 +82,13 @@ function api_get_country_meta_description($country_name) {
   );
 }
 
+function api_get_person_meta_description($person_name) {
+  return sprintf(
+    'Descubra álbuns em que %s participou — bandas e artistas que lançaram apenas um álbum na carreira. Conheça essas pérolas no Bandas 1 Álbum.',
+    $person_name
+  );
+}
+
 function api_get_home_meta() {
   $content = '';
 

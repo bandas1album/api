@@ -188,3 +188,78 @@ function api_credits_from_post_arrays($person_ids, $names, $roles, $details) {
 
   return api_normalize_album_credits($raw);
 }
+
+/**
+ * Indexa person_id dos créditos em meta repetível para meta_query nas listagens.
+ */
+function api_sync_credit_person_ids($post_id) {
+  $post_id = (int) $post_id;
+  if ($post_id <= 0) {
+    return;
+  }
+
+  $credits = api_normalize_album_credits(get_post_meta($post_id, 'credits', true));
+  $ids = [];
+
+  foreach ($credits as $credit) {
+    $id = absint($credit['person_id'] ?? 0);
+    if ($id > 0) {
+      $ids[$id] = true;
+    }
+  }
+
+  delete_post_meta($post_id, 'credit_person_id');
+
+  foreach (array_keys($ids) as $person_id) {
+    add_post_meta($post_id, 'credit_person_id', (int) $person_id, false);
+  }
+}
+
+/**
+ * One-shot backfill do índice credit_person_id.
+ */
+function api_maybe_backfill_credit_person_ids() {
+  if (get_option('api_credit_person_id_backfilled')) {
+    return;
+  }
+
+  $ids = get_posts([
+    'post_type' => 'album',
+    'post_status' => 'any',
+    'posts_per_page' => -1,
+    'fields' => 'ids',
+    'no_found_rows' => true,
+  ]);
+
+  foreach ($ids as $id) {
+    api_sync_credit_person_ids((int) $id);
+  }
+
+  update_option('api_credit_person_id_backfilled', 1, true);
+}
+
+add_action('init', 'api_maybe_backfill_credit_person_ids', 31);
+
+/**
+ * @return WP_Post|null
+ */
+function api_get_person_by_slug($slug) {
+  $slug = sanitize_title((string) $slug);
+  if ($slug === '') {
+    return null;
+  }
+
+  $posts = get_posts([
+    'name' => $slug,
+    'post_type' => 'person',
+    'post_status' => 'publish',
+    'numberposts' => 1,
+    'no_found_rows' => true,
+  ]);
+
+  if (empty($posts) || !($posts[0] instanceof WP_Post)) {
+    return null;
+  }
+
+  return $posts[0];
+}

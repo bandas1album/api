@@ -84,6 +84,10 @@ add_action('wp_restore_post_revision', function ($post_id, $revision_id) {
     api_sync_released_year($post_id);
   }
 
+  if (function_exists('api_sync_credit_person_ids')) {
+    api_sync_credit_person_ids($post_id);
+  }
+
   if (function_exists('bandas_request_frontend_revalidate')) {
     bandas_request_frontend_revalidate($post_id);
   }

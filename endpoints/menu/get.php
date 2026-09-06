@@ -6,7 +6,7 @@ function api_get_menu($request) {
   $page = $pagination['page'];
   $per_page = $pagination['per_page'];
 
-  $allowed_types = ['album', 'genre', 'country', 'released'];
+  $allowed_types = ['album', 'genre', 'country', 'released', 'person'];
   if (!in_array($type, $allowed_types, true)) {
     return new WP_Error('error', 'Tipo de menu inválido.', ['status' => 400]);
   }
@@ -140,6 +140,62 @@ function api_get_menu($request) {
       $response['data'][] = [
         'title' => $row->year,
         'slug' => explode('-', (string) $row->year)[0],
+        'count' => (int) $row->total,
+      ];
+    }
+
+    $response['meta']['pagination'] = [
+      'page' => (int) $page,
+      'per_page' => (int) $per_page,
+      'total_pages' => (int) ceil($total_items / max(1, $per_page)),
+      'total_items' => (int) $total_items,
+    ];
+  }
+
+  if ($type === 'person') {
+    global $wpdb;
+
+    $offset = ($page - 1) * $per_page;
+
+    $total_items = (int) $wpdb->get_var("
+      SELECT COUNT(DISTINCT person.ID)
+      FROM {$wpdb->posts} person
+      INNER JOIN {$wpdb->postmeta} pm
+        ON pm.meta_key = 'credit_person_id'
+        AND pm.meta_value = person.ID
+      INNER JOIN {$wpdb->posts} album
+        ON album.ID = pm.post_id
+        AND album.post_type = 'album'
+        AND album.post_status = 'publish'
+      WHERE person.post_type = 'person'
+        AND person.post_status = 'publish'
+    ");
+
+    $persons = $wpdb->get_results($wpdb->prepare("
+      SELECT
+        person.ID,
+        person.post_title AS title,
+        person.post_name AS slug,
+        COUNT(DISTINCT album.ID) AS total
+      FROM {$wpdb->posts} person
+      INNER JOIN {$wpdb->postmeta} pm
+        ON pm.meta_key = 'credit_person_id'
+        AND pm.meta_value = person.ID
+      INNER JOIN {$wpdb->posts} album
+        ON album.ID = pm.post_id
+        AND album.post_type = 'album'
+        AND album.post_status = 'publish'
+      WHERE person.post_type = 'person'
+        AND person.post_status = 'publish'
+      GROUP BY person.ID
+      ORDER BY person.post_title ASC
+      LIMIT %d OFFSET %d
+    ", $per_page, $offset));
+
+    foreach ($persons as $row) {
+      $response['data'][] = [
+        'title' => html_entity_decode((string) $row->title),
+        'slug' => (string) $row->slug,
         'count' => (int) $row->total,
       ];
     }
