@@ -39,6 +39,9 @@ add_action('wp_ajax_bandas_search_labels', function () {
   $seen = [];
   foreach ($rows as $value) {
     $value = trim((string) $value);
+    if (function_exists('api_decode_text')) {
+      $value = api_decode_text($value);
+    }
     if ($value === '') {
       continue;
     }

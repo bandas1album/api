@@ -37,8 +37,12 @@ add_action('wp_ajax_bandas_search_terms', function () {
 
   $results = [];
   foreach ($terms as $t) {
+    $name = $t->name;
+    if (function_exists('api_decode_text')) {
+      $name = api_decode_text($name);
+    }
     $results[] = [
-      'name' => $t->name,
+      'name' => $name,
       'slug' => $t->slug,
       'term_id' => (int) $t->term_id,
     ];

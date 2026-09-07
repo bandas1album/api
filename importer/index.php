@@ -139,9 +139,9 @@ function bandas_import_render_page() {
 					<tr><th><label>Álbum (título)</label></th><td><input type="text" name="title" class="regular-text" required></td></tr>
 					<tr><th><label>Artista</label></th><td><input type="text" name="artist" class="regular-text"></td></tr>
 					<tr><th><label>Ano / Data</label></th><td><input type="text" name="released" class="regular-text" placeholder="1970 ou 1970-05-01"></td></tr>
-					<tr><th><label>Gravadora</label></th><td><input type="text" name="label" id="bandas-import-label" class="regular-text" autocomplete="off"></td></tr>
-					<tr><th><label>Gênero</label></th><td><input type="text" name="genre" id="bandas-import-genre" class="regular-text" placeholder="Psychedelic Rock; Rock & Roll" autocomplete="off"></td></tr>
-					<tr><th><label>País</label></th><td><input type="text" name="country" id="bandas-import-country" class="regular-text" placeholder="Inglaterra" autocomplete="off"></td></tr>
+					<tr><th><label>Gravadora</label></th><td><input type="text" name="label" id="bandas-import-label" class="regular-text" autocomplete="off"><p class="description">Busque uma gravadora já usada ou digite um nome novo.</p></td></tr>
+					<tr><th><label>Gênero</label></th><td><input type="text" name="genre" id="bandas-import-genre" class="regular-text" placeholder="Psychedelic Rock; Rock & Roll" autocomplete="off"><p class="description">Autocomplete no último termo. Vários gêneros: separe com <code>;</code>.</p></td></tr>
+					<tr><th><label>País</label></th><td><input type="text" name="country" id="bandas-import-country" class="regular-text" placeholder="Inglaterra" autocomplete="off"><p class="description">Busque um país já cadastrado ou digite um nome novo.</p></td></tr>
 					<tr><th><label>Capa (URL)</label></th><td><input type="url" name="cover_url" class="regular-text" placeholder="https://..."></td></tr>
 					<tr><th><label>Tracklist</label></th>
 						<td>
@@ -207,68 +207,76 @@ function bandas_import_render_page() {
 				],
 			]); ?>;
 
-			function bindMetaAutocomplete(selector, conf) {
-				if (!window.jQuery || !jQuery.fn.autocomplete) return;
-				jQuery(selector).autocomplete({
-					minLength: 1,
-					source: function (request, response) {
-						jQuery.getJSON(searchConfig.url, {
-							action: conf.action,
-							nonce: conf.nonce,
-							q: request.term
-						}).done(function (payload) {
-							var items = (payload && payload.success && payload.data) ? payload.data : [];
-							response(jQuery.map(items, function (item) {
-								return { label: item.name, value: item.name };
-							}));
-						}).fail(function () {
-							response([]);
-						});
-					}
-				});
-			}
-
-			function bindTermAutocomplete(selector, taxonomy) {
-				if (!window.jQuery || !jQuery.fn.autocomplete) return;
-				jQuery(selector).autocomplete({
-					minLength: 1,
-					source: function (request, response) {
-						var raw = request.term || '';
-						var parts = raw.split(/[;,]/);
-						var current = jQuery.trim(parts[parts.length - 1] || '');
-						if (!current) {
-							response([]);
-							return;
+			// jQuery UI carrega no footer — precisa esperar ready, senão .autocomplete não existe.
+			jQuery(function ($) {
+				function bindMetaAutocomplete(selector, conf) {
+					if (!$.fn.autocomplete) return;
+					$(selector).autocomplete({
+						minLength: 1,
+						delay: 150,
+						source: function (request, response) {
+							$.getJSON(searchConfig.url, {
+								action: conf.action,
+								nonce: conf.nonce,
+								q: request.term
+							}).done(function (payload) {
+								var items = (payload && payload.success && payload.data) ? payload.data : [];
+								response($.map(items, function (item) {
+									return { label: item.name, value: item.name };
+								}));
+							}).fail(function () {
+								response([]);
+							});
 						}
-						jQuery.getJSON(searchConfig.url, {
-							action: searchConfig.terms.action,
-							nonce: searchConfig.terms.nonce,
-							taxonomy: taxonomy,
-							q: current
-						}).done(function (payload) {
-							var items = (payload && payload.success && payload.data) ? payload.data : [];
-							response(jQuery.map(items, function (item) {
-								return {
-									label: item.name,
-									value: item.name,
-									prefix: jQuery.trim(parts.slice(0, -1).join('; '))
-								};
-							}));
-						}).fail(function () {
-							response([]);
-						});
-					},
-					select: function (_event, ui) {
-						var prefix = ui.item.prefix ? (ui.item.prefix + '; ') : '';
-						jQuery(this).val(prefix + ui.item.value);
-						return false;
-					}
-				});
-			}
+					});
+				}
 
-			bindMetaAutocomplete('#bandas-import-label', searchConfig.label);
-			bindTermAutocomplete('#bandas-import-genre', 'genre');
-			bindTermAutocomplete('#bandas-import-country', 'country');
+				function bindTermAutocomplete(selector, taxonomy) {
+					if (!$.fn.autocomplete) return;
+					$(selector).autocomplete({
+						minLength: 1,
+						delay: 150,
+						source: function (request, response) {
+							var raw = request.term || '';
+							var parts = raw.split(/[;,]/);
+							var current = $.trim(parts[parts.length - 1] || '');
+							if (!current) {
+								response([]);
+								return;
+							}
+							$.getJSON(searchConfig.url, {
+								action: searchConfig.terms.action,
+								nonce: searchConfig.terms.nonce,
+								taxonomy: taxonomy,
+								q: current
+							}).done(function (payload) {
+								var items = (payload && payload.success && payload.data) ? payload.data : [];
+								response($.map(items, function (item) {
+									return {
+										label: item.name,
+										value: item.name,
+										prefix: $.trim(parts.slice(0, -1).join('; '))
+									};
+								}));
+							}).fail(function () {
+								response([]);
+							});
+						},
+						focus: function () {
+							return false;
+						},
+						select: function (_event, ui) {
+							var prefix = ui.item.prefix ? (ui.item.prefix + '; ') : '';
+							$(this).val(prefix + ui.item.value);
+							return false;
+						}
+					});
+				}
+
+				bindMetaAutocomplete('#bandas-import-label', searchConfig.label);
+				bindTermAutocomplete('#bandas-import-genre', 'genre');
+				bindTermAutocomplete('#bandas-import-country', 'country');
+			});
 
 			document.querySelectorAll('.bandas-tab-link').forEach(function (link) {
 				link.addEventListener('click', function (e) {
