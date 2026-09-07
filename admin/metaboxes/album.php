@@ -132,6 +132,7 @@ function render_album_details_metabox($post) {
     }
 
     $credits   = api_normalize_album_credits(get_post_meta($post->ID, 'credits', true));
+    $spotify_embed = (string) get_post_meta($post->ID, 'spotify_embed', true);
 
     $link_platforms = ['amazon', 'deezer', 'lastfm', 'spotify', 'youtube', 'wikipedia', 'download'];
     $released_input = bandas_album_released_for_input($released);
@@ -232,6 +233,15 @@ function render_album_details_metabox($post) {
                    value="<?php echo esc_attr($links[$platform] ?? ''); ?>">
         </div>
     <?php endforeach; ?>
+
+    <div class="album-field">
+        <label>Embed Spotify (podcast / review)</label>
+        <textarea name="spotify_embed" rows="3" style="width:100%;" placeholder="Cole a URL do episódio/show ou o código iframe do Spotify"><?php echo esc_textarea($spotify_embed); ?></textarea>
+        <p class="description">
+            Aceita URL (<code>open.spotify.com/episode/…</code> ou <code>/show/…</code>) ou o HTML do iframe.
+            Não use o campo de descrição do post — iframes são removidos no front por segurança.
+        </p>
+    </div>
 
     <h4>Faixas</h4>
     <p class="description">Campos separados por faixa. O front recebe tudo em JSON via API (inclui youtube_id normalizado).</p>
@@ -436,6 +446,15 @@ add_action('save_post', function ($post_id) {
         $links[$platform] = $url !== '' ? esc_url_raw($url) : null;
     }
     update_post_meta($post_id, 'links', wp_json_encode($links));
+
+    if (array_key_exists('spotify_embed', $_POST)) {
+        $embed = api_normalize_spotify_embed(wp_unslash($_POST['spotify_embed'] ?? ''));
+        if ($embed !== '') {
+            update_post_meta($post_id, 'spotify_embed', $embed);
+        } else {
+            delete_post_meta($post_id, 'spotify_embed');
+        }
+    }
 
     // Tracklist: só atualiza se o repeater veio no POST com ao menos 1 faixa válida.
     // Nunca sobrescreve tracklist existente com [] (POST truncado / max_input_vars / UI vazia).

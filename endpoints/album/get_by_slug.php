@@ -39,6 +39,7 @@ function api_album_get_by_slug($request) {
   }
 
   $author = get_userdata($album->post_author);
+  $spotify_embed = api_normalize_spotify_embed(get_post_meta($album->ID, 'spotify_embed', true));
 
   $response = [
     'id' => $album->ID,
@@ -53,6 +54,7 @@ function api_album_get_by_slug($request) {
     'country' => $country,
     'label' => api_decode_text(get_post_meta($album->ID, 'label', true)),
     'links' => json_decode(get_post_meta($album->ID, 'links', true)),
+    'spotify_embed' => $spotify_embed !== '' ? $spotify_embed : null,
     'tracklist' => api_normalize_album_tracklist(get_post_meta($album->ID, 'tracklist', true)),
     'credits' => api_normalize_album_credits(get_post_meta($album->ID, 'credits', true), true),
   ];

@@ -7,5 +7,6 @@ require_once $dirbase . '/utils/seo.php';
 require_once $dirbase . '/utils/album_covers.php';
 require_once $dirbase . '/utils/tracklist.php';
 require_once $dirbase . '/utils/credits.php';
+require_once $dirbase . '/utils/spotify_embed.php';
 require_once $dirbase . '/utils/revalidate.php';
 require_once $dirbase . '/utils/revisions.php';

@@ -12,6 +12,7 @@ add_filter('_wp_post_revision_meta_keys', function ($keys) {
     'released',
     'released_year',
     'links',
+    'spotify_embed',
     'tracklist',
     'credits',
   ];
@@ -72,7 +73,7 @@ add_action('wp_restore_post_revision', function ($post_id, $revision_id) {
   }
 
   // Cópia explícita — em alguns casos o core não restaura meta JSON grande.
-  foreach (['tracklist', 'credits', 'links', 'artist', 'label', 'released', 'cover'] as $key) {
+  foreach (['tracklist', 'credits', 'links', 'spotify_embed', 'artist', 'label', 'released', 'cover'] as $key) {
     $value = get_metadata('post', $revision_id, $key, true);
     if ($value === '' || $value === false || $value === null) {
       continue;
