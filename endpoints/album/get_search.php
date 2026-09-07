@@ -44,8 +44,8 @@ function api_album_get_search($request) {
     $post_id = get_the_ID();
 
     $response['data']['albums'][] = [
-      'title' => html_entity_decode(get_the_title()),
-      'artist' => get_post_meta($post_id, 'artist', true),
+      'title' => api_decode_text(get_the_title()),
+      'artist' => api_decode_text(get_post_meta($post_id, 'artist', true)),
       'slug' => get_post_field('post_name', $post_id),
     ];
   }
@@ -54,7 +54,7 @@ function api_album_get_search($request) {
   if (!is_wp_error($genres)) {
     foreach ($genres as $genre) {
       $response['data']['genres'][] = [
-        'title' => $genre->name,
+        'title' => api_decode_text($genre->name),
         'slug' => $genre->slug,
       ];
     }
@@ -63,7 +63,7 @@ function api_album_get_search($request) {
   if (!is_wp_error($countries)) {
     foreach ($countries as $country) {
       $response['data']['countries'][] = [
-        'title' => $country->name,
+        'title' => api_decode_text($country->name),
         'slug' => $country->slug,
       ];
     }

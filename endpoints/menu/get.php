@@ -32,8 +32,8 @@ function api_get_menu($request) {
     foreach ($query->posts as $post) {
       $post_id = (int) $post->ID;
       $response['data'][] = [
-        'title' => html_entity_decode(get_the_title($post_id)),
-        'artist' => get_post_meta($post_id, 'artist', true),
+        'title' => api_decode_text(get_the_title($post_id)),
+        'artist' => api_decode_text(get_post_meta($post_id, 'artist', true)),
         'slug' => $post->post_name,
         'cover' => $covers[$post_id] ?? null,
       ];
@@ -59,7 +59,7 @@ function api_get_menu($request) {
     if (!is_wp_error($args)) {
       foreach ($args as $genre) {
         $response['data'][] = [
-          'title' => $genre->name,
+          'title' => api_decode_text($genre->name),
           'slug' => $genre->slug,
           'count' => $genre->count,
         ];
@@ -91,7 +91,7 @@ function api_get_menu($request) {
     if (!is_wp_error($args)) {
       foreach ($args as $country) {
         $response['data'][] = [
-          'title' => $country->name,
+          'title' => api_decode_text($country->name),
           'slug' => $country->slug,
           'count' => $country->count,
         ];
@@ -194,7 +194,7 @@ function api_get_menu($request) {
 
     foreach ($persons as $row) {
       $response['data'][] = [
-        'title' => html_entity_decode((string) $row->title),
+        'title' => api_decode_text((string) $row->title),
         'slug' => (string) $row->slug,
         'count' => (int) $row->total,
       ];

@@ -22,7 +22,7 @@ function api_album_get_by_slug($request) {
   if (is_array($genre_terms)) {
     foreach ($genre_terms as $genre) {
       $genres[] = [
-        'title' => $genre->name,
+        'title' => api_decode_text($genre->name),
         'slug' => $genre->slug,
       ];
     }
@@ -33,7 +33,7 @@ function api_album_get_by_slug($request) {
   if (is_array($country_terms) && !empty($country_terms)) {
     $first = $country_terms[0];
     $country = [
-      'title' => $first->name,
+      'title' => api_decode_text($first->name),
       'slug' => $first->slug,
     ];
   }
@@ -42,16 +42,16 @@ function api_album_get_by_slug($request) {
 
   $response = [
     'id' => $album->ID,
-    'author' => $author ? $author->display_name : '',
-    'title' => $album->post_title,
+    'author' => $author ? api_decode_text($author->display_name) : '',
+    'title' => api_decode_text($album->post_title),
     'description' => $album->post_content,
     'meta_description' => api_get_album_meta_description($album->ID),
     'cover' => $cover_url,
-    'artist' => get_post_meta($album->ID, 'artist', true),
+    'artist' => api_decode_text(get_post_meta($album->ID, 'artist', true)),
     'genres' => $genres,
     'released' => get_post_meta($album->ID, 'released', true),
     'country' => $country,
-    'label' => get_post_meta($album->ID, 'label', true),
+    'label' => api_decode_text(get_post_meta($album->ID, 'label', true)),
     'links' => json_decode(get_post_meta($album->ID, 'links', true)),
     'tracklist' => api_normalize_album_tracklist(get_post_meta($album->ID, 'tracklist', true)),
     'credits' => api_normalize_album_credits(get_post_meta($album->ID, 'credits', true), true),

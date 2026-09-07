@@ -1,5 +1,12 @@
 <?php
 
+/**
+ * Decodifica entidades HTML para JSON (ex.: R&amp;B → R&B).
+ */
+function api_decode_text($text) {
+  return html_entity_decode((string) $text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+}
+
 function api_join_pt(array $items) {
   $items = array_values(array_filter(array_map('trim', $items)));
   $count = count($items);
@@ -21,8 +28,8 @@ function api_join_pt(array $items) {
 }
 
 function api_get_album_meta_description($album_id) {
-  $title = html_entity_decode(get_the_title($album_id));
-  $artist = get_post_meta($album_id, 'artist', true) ?: '';
+  $title = api_decode_text(get_the_title($album_id));
+  $artist = api_decode_text(get_post_meta($album_id, 'artist', true) ?: '');
   $released = get_post_meta($album_id, 'released', true);
   $year = $released ? date('Y', strtotime($released)) : '';
 
@@ -31,7 +38,7 @@ function api_get_album_meta_description($album_id) {
 
   if ($genre_terms && !is_wp_error($genre_terms)) {
     foreach ($genre_terms as $term) {
-      $genres[] = $term->name;
+      $genres[] = api_decode_text($term->name);
     }
   }
 
@@ -64,7 +71,7 @@ function api_get_term_playlists($term_id) {
 function api_get_genre_meta_description($genre_name) {
   return sprintf(
     'Descubra álbuns de %s de bandas e artistas que lançaram apenas um álbum na carreira. Conheça essas pérolas no Bandas 1 Álbum.',
-    $genre_name
+    api_decode_text($genre_name)
   );
 }
 
@@ -78,14 +85,14 @@ function api_get_year_meta_description($year) {
 function api_get_country_meta_description($country_name) {
   return sprintf(
     'Descubra álbuns lançados em %s por bandas e artistas que deixaram apenas um álbum na carreira. Conheça essas pérolas no Bandas 1 Álbum.',
-    $country_name
+    api_decode_text($country_name)
   );
 }
 
 function api_get_person_meta_description($person_name) {
   return sprintf(
     'Descubra álbuns em que %s participou — bandas e artistas que lançaram apenas um álbum na carreira. Conheça essas pérolas no Bandas 1 Álbum.',
-    $person_name
+    api_decode_text($person_name)
   );
 }
 

@@ -40,12 +40,13 @@ function api_album_get_all($request) {
 
     $term = get_term_by('slug', $slug, 'genre');
     if ($term && !is_wp_error($term)) {
+      $title = api_decode_text($term->name);
       $response['meta']['context'] = [
         'type' => 'genre',
         'page' => 'Gênero',
-        'title' => $term->name,
+        'title' => $title,
         'slug' => $term->slug,
-        'description' => api_get_genre_meta_description($term->name),
+        'description' => api_get_genre_meta_description($title),
         'playlists' => api_get_term_playlists($term->term_id),
       ];
     }
@@ -62,12 +63,13 @@ function api_album_get_all($request) {
 
     $term = get_term_by('slug', $slug, 'country');
     if ($term && !is_wp_error($term)) {
+      $title = api_decode_text($term->name);
       $response['meta']['context'] = [
         'type' => 'country',
         'page' => 'País de lançamento',
-        'title' => $term->name,
+        'title' => $title,
         'slug' => $term->slug,
-        'description' => api_get_country_meta_description($term->name),
+        'description' => api_get_country_meta_description($title),
         'playlists' => api_get_term_playlists($term->term_id),
       ];
     }
@@ -111,7 +113,7 @@ function api_album_get_all($request) {
     $response['meta']['context'] = [
       'type' => 'person',
       'page' => 'Pessoa',
-      'title' => html_entity_decode($person->post_title),
+      'title' => api_decode_text($person->post_title),
       'slug' => $person->post_name,
       'description' => api_get_person_meta_description($person->post_title),
       'image' => api_get_person_photo_url($person, 'medium'),
@@ -134,8 +136,8 @@ function api_album_get_all($request) {
     $post_id = (int) $post->ID;
     $released = get_post_meta($post_id, 'released', true);
     $response['data'][] = [
-      'title' => html_entity_decode(get_the_title($post_id)),
-      'artist' => get_post_meta($post_id, 'artist', true),
+      'title' => api_decode_text(get_the_title($post_id)),
+      'artist' => api_decode_text(get_post_meta($post_id, 'artist', true)),
       'slug' => $post->post_name,
       'cover' => $covers[$post_id] ?? null,
       'released' => $released ? (string) $released : null,
