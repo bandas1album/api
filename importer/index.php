@@ -140,7 +140,7 @@ function bandas_import_render_page() {
 					<tr><th><label>Artista</label></th><td><input type="text" name="artist" class="regular-text"></td></tr>
 					<tr><th><label>Ano / Data</label></th><td><input type="text" name="released" class="regular-text" placeholder="1970 ou 1970-05-01"></td></tr>
 					<tr><th><label>Gravadora</label></th><td><input type="text" name="label" id="bandas-import-label" class="regular-text" autocomplete="off"><p class="description">Busque uma gravadora já usada ou digite um nome novo.</p></td></tr>
-					<tr><th><label>Gênero</label></th><td><input type="text" name="genre" id="bandas-import-genre" class="regular-text" placeholder="Psychedelic Rock; Rock & Roll" autocomplete="off"><p class="description">Autocomplete no último termo. Vários gêneros: separe com <code>;</code>.</p></td></tr>
+					<tr><th><label>Gênero</label></th><td><input type="text" name="genre" id="bandas-import-genre" class="regular-text" placeholder="Psychedelic Rock; Rock & Roll" autocomplete="off"><p class="description">Autocomplete no último termo. Vários gêneros: use <code>;</code> (vírgulas viram <code>;</code> ao sair do campo).</p></td></tr>
 					<tr><th><label>País</label></th><td><input type="text" name="country" id="bandas-import-country" class="regular-text" placeholder="Inglaterra" autocomplete="off"><p class="description">Busque um país já cadastrado ou digite um nome novo.</p></td></tr>
 					<tr><th><label>Capa (URL)</label></th><td><input type="url" name="cover_url" class="regular-text" placeholder="https://..."></td></tr>
 					<tr><th><label>Tracklist</label></th>
@@ -276,6 +276,19 @@ function bandas_import_render_page() {
 				bindMetaAutocomplete('#bandas-import-label', searchConfig.label);
 				bindTermAutocomplete('#bandas-import-genre', 'genre');
 				bindTermAutocomplete('#bandas-import-country', 'country');
+
+				$('#bandas-import-genre').on('blur', function () {
+					var val = String($(this).val() || '');
+					if (val.indexOf(',') === -1) return;
+					var next = val
+						.split(/[,;]+/)
+						.map(function (part) {
+							return $.trim(part);
+						})
+						.filter(Boolean)
+						.join('; ');
+					$(this).val(next);
+				});
 			});
 
 			document.querySelectorAll('.bandas-tab-link').forEach(function (link) {
