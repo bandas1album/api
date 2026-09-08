@@ -45,7 +45,7 @@ function api_get_album_meta_description($album_id) {
   $genres_str = api_join_pt($genres);
 
   return sprintf(
-    '%s — único álbum de %s, lançado em %s. Conheça essa pérola de %s no Bandas 1 Álbum.',
+    '%s é o único álbum de %s, lançado em %s. Conheça e saiba onde ouvir e comprar essa pérola de %s no Bandas 1 Álbum.',
     $title,
     $artist,
     $year,
@@ -91,7 +91,7 @@ function api_get_country_meta_description($country_name) {
 
 function api_get_person_meta_description($person_name) {
   return sprintf(
-    'Descubra álbuns em que %s participou — bandas e artistas que lançaram apenas um álbum na carreira. Conheça essas pérolas no Bandas 1 Álbum.',
+    'Descubra álbuns em que %s participou. Bandas e artistas que lançaram apenas um álbum na carreira. Conheça essas pérolas no Bandas 1 Álbum.',
     api_decode_text($person_name)
   );
 }
