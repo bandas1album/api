@@ -3,6 +3,7 @@ $dirbase = get_template_directory();
 
 // Security (load first)
 require_once $dirbase . '/security/index.php';
+require_once $dirbase . '/security/frontend-redirect.php';
 
 // Admin
 require_once $dirbase . '/admin/metaboxes/album.php';
